@@ -33,7 +33,7 @@ Start with one match against each benchmark: Benchmark FC, Total Attack United, 
 
 ## Add a formation without code changes
 
-Use **Formations → New**, or **Duplicate as new formation**. Set a unique family (for example `2-1-1`), structure, descriptive placements, all five phase duties, relationships, expected failure, and execution questions. Set status to active when complete; portal compatibility starts unconfirmed. Create fresh prompts and a team referencing this revision. Previous evidence and champion history do not transfer. Creating another revision preserves the old one and all its references.
+Use **Library → Formations → New formation**, or **Duplicate as new formation** on an existing one. Set a unique family (for example `2-1-1`), structure, descriptive placements, all five phase duties, relationships, expected failure, and execution questions. Set status to active when complete; portal compatibility starts unconfirmed. Create fresh prompts and a team referencing this revision. Previous evidence and champion history do not transfer. Creating another revision preserves the old one and all its references.
 
 ## Persistence and backups
 
@@ -52,24 +52,31 @@ No remote database, automated tactical judging, or portal runner is included. Th
 
 ## Local simulation
 
-Open **Simulation** for a pitch viewer, saved replays, decision traces, statistics and paired experiments. Read [simulator assumptions and API guide](docs/simulator.md).
+Open **Simulate** for the pitch replay, stored matches, per-player decision traces and statistics; **New match** opens the setup drawer. Read [simulator assumptions and API guide](docs/simulator.md).
 
 1. Start with **Mock · fixture only** to verify the workflow without any API calls. Mock controls are scripted and do not interpret your prompts.
 2. Put `OPENAI_API_KEY=...` in ignored `.env.local` (see `.env.example`), or supply it in the server environment. Never paste the key into a player prompt. Restart the app after changing environment settings. The worker reloads `.env.local` before each new run; to restart it explicitly, use `npm run worker:stop` before restarting the dashboard. Configuration status exposes only a boolean.
-3. Select Decisions, your immutable team/scenario, duration and ceilings, then explicitly start the match. Decisions defaults to `gpt-6-luna`; Responses is a separate explicit selection. OpenAI SDK 7.30+ and Node 22+ are required.
+3. Build the squad on **Squad** (team version, starting positions and a model per player), then use **Simulate → New match** to set the opponent, duration and ceilings and explicitly start it. Decisions supports `gpt-6-luna` for every player; any other model mix runs on Responses automatically. OpenAI SDK 7.30+ and Node 22+ are required.
 4. Inspect execution traces, results, bookmarked evidence and repeated seeds. Local simulation evidence and champions are separate from portal validation.
 
-The dashboard launches a detached local worker automatically. `npm run worker` can run it explicitly; its SQLite lease prevents duplicate workers. Closing the tab leaves jobs running. Pause waits for the current decision batch; stop cancels pending requests where possible. A crashed worker marks active jobs interrupted when it restarts. Back up the entire `data/` directory for jobs and replays; workspace record exports contain evidence references, while **Export replay + decisions** contains one complete simulation snapshot.
+The dashboard launches a detached local worker automatically. `npm run worker` can run it explicitly; its SQLite lease prevents duplicate workers. Closing the tab leaves jobs running. Pause waits for the current decision batch; stop cancels pending requests where possible. A crashed worker marks active jobs interrupted when it restarts. Back up the entire `data/` directory for jobs and replays; workspace record exports contain evidence references, while **Full replay + decisions (JSON)** in the Simulate inspector contains one complete simulation snapshot.
 
 ## Interface
 
-Navigation highlights Overview, Simulation, Analytics and Player prompts, with supporting Evidence and Research groups. Player prompts use formation/revision selectors, five role tabs, and a version selector; selections persist for the browser session. Copy, download, source traceability, parent differences, and immutable revision creation remain available for the selected prompt.
+The app follows one journey, shown as numbered steps in the black navigation rail, with everything else under **Library**. Every page has a URL, so links and the back button work.
 
-Simulation bookmarks live on the replay timeline. Nearby events cluster at the current screen width; select a marker to seek, inspect events, or open an annotation draft. The Match library provides searchable Matches/Series tables, evidence/status filters, creation-time sorting, and 20-row pages. Match setup, scenarios, diagnostics, promotions, and workspace backup tools can be expanded when needed. Mobile navigation uses a drawer; interface transitions respect reduced-motion preferences.
+- **Home** replays the strongest stored match, shows the status of each step, a goal-difference leaderboard and recent matches.
+- **01 Squad** builds a multi-model team: formation, team version, starting positions, and for each player a prompt version (with its evidence), a model, reasoning effort and output limit. Players are ringed in their model's colour; the provider follows the model mix. Prompt swaps can be saved as a new team version. The squad is remembered per browser and used by Simulate, campaigns and export.
+- **02 Simulate** puts the pitch in the centre: a 60 fps interpolated replay with ball trail, intent lines to each player's chosen target, and goal/shot pulses. Your squad is always lime, whichever side it played. The inspector shows the selected player's decision at the current moment (chosen option, legal options, latency, tokens), the event feed and match statistics. Space plays/pauses and arrow keys step. Paused positions are kept in the URL (`?run=…&t=…`).
+- **03 Analytics** compares configurations: results, goal difference per 60 s, decision latency, speed against result, cost per match and a per-position contribution heatmap. Filters live in the URL and every chart has a table view.
+- **04 Prompts** shows each position's version history with honest evidence labels (untested, only tested, best observed with sample size), a line-numbered prompt view, a diff against the parent version, per-model evidence and traceability. **Export squad** packages all five prompts with model settings and evidence as Markdown, JSON (`agentic-football.squad/v1`) or plain text, from the current squad, the best observed versions, or any team version.
+- **Library** holds sources, principles, hypotheses, formations, team versions, portal experiments and match evidence, comparisons, promotion history, critical events, annotation collections, improvement campaigns, benchmarks and paired series, and workspace backup/attachments.
+
+The theme follows the system setting, with a light/dark/system toggle in the top bar. Type is Geist and Geist Mono; motion uses GSAP and respects reduced-motion preferences. Browsing never starts the simulation worker: pages read `GET /api/runs` (run summaries) and `GET /api/simulation/:id?view=replay|frames` (replays without observation payloads).
 
 ### Revising prompts from annotation collections
 
-Open **Evidence → Annotation collections**, or **Player prompts → Revise from annotations**. Choose a formation revision, player, parent prompt and evidence origin. Select up to 50 critical-event annotations from any matching matches, name the collection and save it. Collections are immutable; **Revise collection** creates a new one. Portal, local simulation and test fixture evidence stay separate. Different tested prompt versions are identified in the evidence sent to the model.
+Open **Library → Collections**, or **Prompts → Revise from annotations**. Choose a formation revision, player, parent prompt and evidence origin. Select up to 50 critical-event annotations from any matching matches, name the collection and save it. Collections are immutable; **Revise collection** creates a new one. Portal, local simulation and test fixture evidence stay separate. Different tested prompt versions are identified in the evidence sent to the model.
 
 **Generate AI proposal** sends one bounded Responses API request using the server-side `OPENAI_API_KEY`. The model defaults to `gpt-6-luna`; override it with `PROMPT_REVISION_MODEL` in `.env.local` or the visible model field. Each click allows a conservative 50,000 input-token reservation, at most 4,096 output tokens, and a 60-second timeout, without retries or provider switching. Annotation text, exact prompts and match context are sent; replay files and attachments are not analyzed. Decisions remains the match-action provider; prompt drafting uses Responses for text generation. See [OpenAI structured output documentation](https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=responses).
 
@@ -77,13 +84,11 @@ Review evidence citations, uncertainties, the evaluation plan and parent differe
 
 ## Analytics and model benchmarks
 
-The interface follows the local Stitch export with charcoal surfaces, restrained lime accents, compact record tables and icon-based replay controls. Overview, Simulation, Analytics and Player prompts are primary destinations; Evidence and Research contain the supporting workflows. All legacy records and replay actions remain available.
-
-**Simulation → Responses** exposes independent models and inference settings for all five positions, including a separately configured agent opponent. Decisions remains restricted to `gpt-6-luna`. Settings and dated pricing are frozen in each new run. Existing runs retain their original observation/provider semantics.
+**Squad** exposes independent models and inference settings for all five positions; **Simulate → New match** configures an optional agent opponent. Decisions remains restricted to `gpt-6-luna`. Settings and dated pricing are frozen in each new run. Existing runs retain their original observation/provider semantics.
 
 The starter catalog adds **2–1–1** with GK + two defenders (DEF/MID), a connector (FOR1), and a high outlet (FOR2). The same labels remain stable across formations. Each formation also has five **adaptive v1** prompt revisions and a separate team version, all untested. Version 2 observations provide time remaining, match progress and ten-second rolling possession/shots/turnover summaries; physics and legal candidate generation are unchanged.
 
-**Analytics → New benchmark** previews a model × formation matrix before starting it. The default pilot uses three models, two formations, seeds 42/43, both sides, 20 seconds, and a balanced scripted opponent: 24 matches / 2,400 normal requests. Its ceilings are 3,000 requests (including retries), 30 million reserved input tokens, and $5 estimated spend. Before each request, SQLite atomically reserves conservative input/output cost across the whole benchmark. Unknown usage retains its reservation. Pricing snapshots are dated and linked to official documentation; costs are estimates rather than invoice reconciliation. Models are never silently substituted.
+**Library → Benchmarks & series → New benchmark** previews a model × formation matrix before starting it. The default pilot uses three models, two formations, seeds 42/43, both sides, 20 seconds, and a balanced scripted opponent: 24 matches / 2,400 normal requests. Its ceilings are 3,000 requests (including retries), 30 million reserved input tokens, and $5 estimated spend. Before each request, SQLite atomically reserves conservative input/output cost across the whole benchmark. Unknown usage retains its reservation. Pricing snapshots are dated and linked to official documentation; costs are estimates rather than invoice reconciliation. Models are never silently substituted.
 
 Analytics defaults to completed **local simulation** evidence. Fixtures need explicit selection; partial/active/failed matches are separate. Charts have data-table alternatives and report pooled decision/request percentiles, round waiting, passing, shots, dangerous losses, support/cover/recovery, individual contributions, usage and estimated cost. Mixed-model teams are separate configurations. Formation comparisons describe the formation-and-prompt system; small samples do not establish general model intelligence or portal performance.
 
@@ -95,11 +100,9 @@ New APIs:
 
 For the explicitly authorized pilot, `node --import tsx scripts/benchmark.ts start` creates the dated pilot once; `status` reports progress and `export` writes the manifest/results/insights under ignored `data/`. The worker executes independently of browser viewers. The pre-redesign database backup is `data/before-analytics-redesign.sqlite`.
 
-### Prepare → Simulate → Evaluate → Prompts
+### Improvement campaigns
 
-The sidebar now has four stages. **Prepare** contains team setup, formation/scenario configuration, immutable strategy revisions, team versions, and sources. Principles and formation hypotheses are available from sources. **Simulate** offers a single match or an improvement campaign. **Evaluate** contains analytics, campaign results, match evidence, annotations/collections, and the existing portal tools. **Prompts** retains role/version selection, manual revisions and annotation-based proposals, plus campaign provenance.
-
-Start an autonomous campaign by selecting a team, saved scenario and strategy in Prepare. In Simulate → Improvement campaign, enter a dollar ceiling, review the request/token/generation ceilings, preview, then start. No campaign starts just by opening the application. Optional existing runs must match the baseline's exact model map, inference, formation, positions, duration, provider and engine versions; selected in-progress runs are awaited. Human annotations are optional. Changes to strategy create a new revision; existing campaign manifests stay frozen.
+Start an autonomous campaign from **Library → Improvement campaigns**: it uses your current squad and starting positions plus a strategy chosen on that page. Enter a dollar ceiling, review the request/token/generation ceilings, preview, then start. No campaign starts just by opening the application. Optional existing runs must match the baseline's exact model map, inference, formation, positions, duration, provider and engine versions; selected in-progress runs are awaited. Human annotations are optional. Changes to strategy create a new revision; existing campaign manifests stay frozen.
 
 A campaign first gathers discovery evidence if needed, then generates one player's revision with a single structured Responses request. It creates an immutable team version reusing the other four prompts. Machine evidence bundles cite real run IDs and contain bounded trace/event samples and raw outcomes; they are separate from human annotations. Protected strategy instructions must be preserved verbatim. Sources are never invented. The generator may decline to propose a change when evidence is insufficient.
 
