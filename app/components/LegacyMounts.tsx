@@ -4,26 +4,11 @@
 import { useRouter } from "next/navigation";
 import { useWorkspace } from "../lib/data/hooks";
 import Analytics from "./Analytics";
-import PrepareWorkspace from "./PrepareWorkspace";
 import PromptBrowser from "./PromptBrowser";
 import { Skeleton } from "./ui/primitives";
 
 function useW() {
   return useWorkspace().data?.records;
-}
-export function LegacySquad() {
-  const w = useW(),
-    router = useRouter();
-  if (!w) return <Skeleton height={320} />;
-  return (
-    <div className="legacy">
-      <PrepareWorkspace
-        workspace={w}
-        onContinue={() => router.push("/simulate")}
-        onPositions={() => router.push("/simulate")}
-      />
-    </div>
-  );
 }
 export function LegacyAnalytics() {
   const w = useW(),

@@ -3,6 +3,8 @@ import { useState, useRef, useEffect } from "react";
 import { ROLES, type Role, type Workspace } from "../../lib/domain";
 import type { Layout } from "../../lib/simulation/types";
 import { usePreparation } from "./Preparation";
+import { PitchField } from "./pitch/PitchField";
+import ps from "./pitch/pitch.module.css";
 const initial: Layout = {
   GK: { x: 0.06, y: 0.5 },
   DEF: { x: 0.25, y: 0.5 },
@@ -72,55 +74,45 @@ export default function ScenarioEditor({
       setBusy(false);
     }
   }
+  function pointer(e: React.PointerEvent<SVGSVGElement>) {
+    if (!drag.current || !pitch.current) return;
+    const pt = pitch.current.createSVGPoint();
+    pt.x = e.clientX;
+    pt.y = e.clientY;
+    const m = pitch.current.getScreenCTM();
+    if (!m) return;
+    const v = pt.matrixTransform(m.inverse());
+    move(drag.current, v.x / 40, v.y / 20);
+  }
   return (
-    <details className="workspace-section scenario-panel">
-      <summary>Starting positions & scenarios</summary>
+    <div className="scenario-panel" style={{ display: "grid", gap: 14 }}>
       <p className="muted">
-        Drag a player or use arrow keys. Positions apply to this local
-        simulator.
+        Positions are relative to your own goal (attacking right) and apply to
+        the local simulator. Saving creates a new layout.
       </p>
       {error && (
         <p role="alert" className="error">
           {error}
         </p>
       )}
-      {notice && <p role="status">{notice}</p>}
-      <label>
-        Scenario name
-        <input value={name} onChange={(e) => setName(e.target.value)} />
-      </label>
-      <svg
+      {notice && (
+        <p role="status" className="notice">
+          {notice}
+        </p>
+      )}
+      <PitchField
         ref={pitch}
-        viewBox="0 0 400 200"
-        className="sim-pitch editor-pitch"
-        aria-label="Starting position editor"
-        onPointerMove={(e) => {
-          if (!drag.current || !pitch.current) return;
-          const b = pitch.current.getBoundingClientRect();
-          move(
-            drag.current,
-            (e.clientX - b.left) / b.width,
-            (e.clientY - b.top) / b.height,
-          );
-        }}
+        label="Starting position editor"
+        onPointerMove={pointer}
         onPointerUp={() => (drag.current = null)}
         onPointerCancel={() => (drag.current = null)}
       >
-        <rect width="400" height="200" fill="#10271f" />
-        <rect
-          x="8"
-          y="8"
-          width="384"
-          height="184"
-          fill="none"
-          stroke="#77998a"
-        />
-        <path d="M200 8v184" stroke="#77998a" />
-        <circle cx="200" cy="100" r="28" fill="none" stroke="#77998a" />
         {ROLES.map((role) => (
           <g
             key={role}
-            transform={`translate(${positions[role].x * 400},${positions[role].y * 200})`}
+            className={`${ps.player} ${ps.ours}`}
+            style={{ touchAction: "none" }}
+            transform={`translate(${positions[role].x * 40} ${positions[role].y * 20})`}
             role="button"
             tabIndex={0}
             aria-label={`${role} position, x ${positions[role].x.toFixed(2)}, y ${positions[role].y.toFixed(2)}. Use arrow keys.`}
@@ -139,23 +131,30 @@ export default function ScenarioEditor({
             }}
             onPointerDown={(e) => {
               drag.current = role;
-              e.currentTarget.setPointerCapture(e.pointerId);
+              pitch.current?.setPointerCapture(e.pointerId);
             }}
           >
-            <circle r="10" fill="#c6ef8a" />
-            <text y="-15" textAnchor="middle" fontSize="10" fill="white">
+            <circle className={ps.hit} r={1.6} />
+            <circle className={ps.disc} r={1} />
+            <text className={ps.role} style={{ fontSize: "0.5px" }}>
               {role}
             </text>
           </g>
         ))}
-      </svg>
-      <button
-        className="secondary"
-        disabled={busy || !name.trim() || !formationId}
-        onClick={save}
-      >
-        {busy ? "Saving…" : "Save starting positions"}
-      </button>
-    </details>
+      </PitchField>
+      <div className="toolbar">
+        <label style={{ flex: 1, minWidth: 200 }}>
+          Layout name
+          <input value={name} onChange={(e) => setName(e.target.value)} />
+        </label>
+        <button
+          disabled={busy || !name.trim() || !formationId}
+          onClick={save}
+          style={{ alignSelf: "flex-end" }}
+        >
+          {busy ? "Saving…" : "Save starting positions"}
+        </button>
+      </div>
+    </div>
   );
 }

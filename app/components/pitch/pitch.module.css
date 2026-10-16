@@ -144,3 +144,10 @@
   fill: var(--accent);
   pointer-events: none;
 }
+.lineupModel {
+  font-family: var(--font-mono);
+  font-size: 0.55px;
+  text-anchor: middle;
+  fill: #ffffffb3;
+  pointer-events: none;
+}

@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { LegacySquad } from "../../components/LegacyMounts";
+import SquadView from "../../components/squad/SquadView";
 
 export const metadata: Metadata = { title: "Squad" };
 
-export default function Page() {
-  return <LegacySquad />;
+export default function SquadPage() {
+  return <SquadView />;
 }
