@@ -55,10 +55,7 @@ export function NavRail({
     >
       <Link href="/" className={s.brand} onClick={onNavigate}>
         <BrandMark className={s.brandMark} />
-        <span className={s.brandText}>
-          <span className={s.brandName}>Agentic Football</span>
-          <span className={s.brandSub}>Lab · 5v5</span>
-        </span>
+        <span className={s.brandName}>Agentic Football Lab</span>
       </Link>
       <nav ref={nav} className={s.nav} aria-label="Primary">
         <span ref={indicator} className={s.indicator} aria-hidden="true" />
