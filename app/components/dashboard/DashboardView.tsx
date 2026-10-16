@@ -150,14 +150,25 @@ export default function DashboardView() {
             with you.
           </p>
           <div className={s.heroCtas}>
-            <Button
-              variant="primary"
-              size="lg"
-              href={best ? `/simulate?run=${best.id}` : "/simulate"}
-              icon="play"
-            >
-              Watch the best match
-            </Button>
+            {best || !index ? (
+              <Button
+                variant="primary"
+                size="lg"
+                href={best ? `/simulate?run=${best.id}` : "/simulate"}
+                icon="play"
+              >
+                Watch the best match
+              </Button>
+            ) : (
+              <Button
+                variant="primary"
+                size="lg"
+                href="/simulate?new=1"
+                icon="plus"
+              >
+                Start your first match
+              </Button>
+            )}
             <Button
               size="lg"
               href="/prompts?export=1"
@@ -170,6 +181,14 @@ export default function DashboardView() {
         </div>
         <div className={s.heroPitch}>
           <HeroReplay runId={best?.id ?? null} />
+          {index && !best && (
+            <div className={s.caption}>
+              <span>
+                No matches yet. A Mock match runs without an API key and shows
+                how replays work.
+              </span>
+            </div>
+          )}
           {best && (
             <div className={s.caption}>
               <span>

@@ -1,23 +1,96 @@
 # Agentic Football Lab
 
-A local, formation-aware research and evaluation dashboard for the Agentic Football Cup. Seeded with authoritative FIFA/UEFA source references, five exact original 1–1–2 baseline prompts, and five provisional research prompts. None are assumed validated.
+A local lab for building, simulating and evaluating five-a-side football teams whose players are LLM agents. Give each of the five players its own prompt and model, replay every match decision by decision, compare configurations, and export the prompts that win.
 
-## Run
+It ships with FIFA/UEFA and futsal source references, two formations (1–1–2 and 2–1–1), and baseline, research and adaptive prompt versions for every position. None of them are assumed to be validated: the point of the lab is to collect evidence.
 
-Requires Node.js 22+ and npm. A project-local Node 22 runtime is installed for npm scripts. SQLite uses `better-sqlite3` (native module).
+- **Squad**: pick a prompt version, model, reasoning effort and output limit per player. Mixed-model teams are supported.
+- **Simulate**: a 2D match engine with an animated pitch replay and each player's decision at every moment.
+- **Analytics**: results, goal difference, decision latency, cost and per-position contributions across configurations.
+- **Prompts**: version history with evidence, diffs against parent versions, and a one-click export of all five prompts (Markdown, JSON or text).
+
+## Getting started
+
+### Prerequisites
+
+- **Node.js 22 or newer** and npm. With nvm, run `nvm use` (the repo has an `.nvmrc`). `npm install` also adds a project-local Node 22 runtime that the npm scripts use.
+- **macOS, Linux or Windows (WSL).** The database uses `better-sqlite3`, which downloads a prebuilt binary for most platforms. If none matches yours it compiles from source, which needs Python 3 and a C++ toolchain (Xcode Command Line Tools on macOS, `build-essential` on Debian/Ubuntu).
+- **Optional: an OpenAI API key.** Only needed to run new matches with real models. Browsing, replays, analytics, prompt editing and export work without one.
+
+### Install and run
 
 ```sh
+git clone https://github.com/asherif0/agentic-football.git
+cd agentic-football
+nvm use              # optional, selects Node 22
 npm install
+cp .env.example .env.local   # optional: add OPENAI_API_KEY=... to run real matches
 npm run dev
 ```
 
-Open http://127.0.0.1:3000. For production: `npm run build` then `npm start`. Bind to localhost only: this is a personal workspace without authentication.
+Open http://127.0.0.1:3000.
+
+On first start the app creates `data/lab.sqlite` and seeds it with the formations, sources, prompts and team versions. A fresh install has **no matches yet**, so Simulate and Analytics start empty.
+
+### Your first match
+
+- **Without an API key:** open **Simulate → New match**, set the provider to **Mock**, and start. Mock matches use scripted controllers that do not read your prompts; they are labelled *test fixtures* and appear in Analytics under **Test fixtures**. Use them to try the replay and the workflow.
+- **With an API key:** add `OPENAI_API_KEY` to `.env.local` and restart. Choose a prompt and model for each player on **Squad**, then **Simulate → New match**. Every match makes real, billed model calls. The setup drawer shows the planned number of calls and an estimated cost, and request and token ceilings stop a match cleanly.
+- **Take the prompts with you:** **Prompts → Export squad** downloads all five prompts with their model settings and evidence.
+
+Matches run in a background worker that the app starts when needed, so closing the browser tab does not stop them.
+
+### Production build
 
 ```sh
-npm test
-npm run typecheck
 npm run build
+npm start
 ```
+
+Both commands bind to `127.0.0.1`. There is no authentication, so do not expose the app on a public network.
+
+### Scripts
+
+| Command | What it does |
+|---|---|
+| `npm run dev` | Development server on http://127.0.0.1:3000 |
+| `npm run build` / `npm start` | Production build and server |
+| `npm test` | Unit tests (Node test runner) |
+| `npm run typecheck` | TypeScript check |
+| `npm run worker` / `npm run worker:stop` | Run or stop the simulation worker explicitly |
+| `npm run benchmark` | Model × formation benchmark CLI (`start`, `status`, `export`) |
+| `npm run improvement:smoke` | End-to-end mock campaign against a production build, no paid calls |
+
+### Configuration
+
+Set these in `.env.local` or the server environment.
+
+| Variable | Purpose |
+|---|---|
+| `OPENAI_API_KEY` | Enables real matches, benchmarks, campaigns and AI prompt proposals. Never put it in a prompt. |
+| `PROMPT_REVISION_MODEL` | Model used to draft prompt revisions (default `gpt-6-luna`). |
+| `FOOTBALL_DATA_DIR` | Directory for the SQLite database and attachments (default `data/`). Useful for a separate test workspace. |
+| `NEXT_DIST_DIR` | Build output directory (default `.next`), for running a second build next to a live one. |
+
+### Project layout
+
+```
+app/(lab)/        pages: Home, Squad, Simulate, Analytics, Prompts, Library
+app/components/   UI: shell, pitch replay, charts, page views
+app/lib/          client helpers: data cache, playback, evidence, export
+app/api/          API routes (runs, simulation, analytics, workspace, campaigns…)
+lib/              match engine, providers, SQLite store, analytics, campaigns
+scripts/          worker and CLI tools
+tests/            unit tests
+docs/simulator.md simulator assumptions and API guide
+```
+
+### Troubleshooting
+
+- **`better-sqlite3` fails to load or build:** make sure you are on Node 22 (`node -v`), then run `npm rebuild better-sqlite3`.
+- **Port 3000 is taken:** `npm run dev -- -p 3001`.
+- **A match stays queued:** the worker may have stopped. Click **Wake simulator** (it appears in the sidebar while a match is waiting), or run `npm run worker`. `npm run worker:stop` stops it.
+- **Start over:** stop the app and delete `data/lab.sqlite*`; it is re-seeded on the next start. Back up `data/` first if you want to keep your matches.
 
 ## Workflow
 

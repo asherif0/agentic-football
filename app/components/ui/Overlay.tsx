@@ -70,7 +70,13 @@ export function Drawer({
   const panel = useOverlay(open, onClose);
   useEffect(() => {
     if (open && panel.current && !reducedMotion())
-      gsap.from(panel.current, { x: 48, autoAlpha: 0, duration: 0.45 });
+      // fromTo, not from: Strict Mode runs effects twice in dev, and a second
+      // `from` would treat the half-faded state as its end point.
+      gsap.fromTo(
+        panel.current,
+        { x: 48, autoAlpha: 0 },
+        { x: 0, autoAlpha: 1, duration: 0.45 },
+      );
   }, [open]);
   if (!open || typeof document === "undefined") return null;
   return createPortal(
@@ -131,12 +137,11 @@ export function Dialog({
   const panel = useOverlay(open, onClose);
   useEffect(() => {
     if (open && panel.current && !reducedMotion())
-      gsap.from(panel.current, {
-        y: 16,
-        scale: 0.98,
-        autoAlpha: 0,
-        duration: 0.4,
-      });
+      gsap.fromTo(
+        panel.current,
+        { y: 16, scale: 0.98, autoAlpha: 0 },
+        { y: 0, scale: 1, autoAlpha: 1, duration: 0.4 },
+      );
   }, [open]);
   if (!open || typeof document === "undefined") return null;
   return createPortal(

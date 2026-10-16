@@ -14,7 +14,11 @@ export function Toaster() {
       seen.current.add(t.id);
       const el = ref.current?.querySelector(`[data-toast="${t.id}"]`);
       if (el && !reducedMotion())
-        gsap.from(el, { y: 16, autoAlpha: 0, duration: 0.4 });
+        gsap.fromTo(
+          el,
+          { y: 16, autoAlpha: 0 },
+          { y: 0, autoAlpha: 1, duration: 0.4 },
+        );
     }
   }, [toasts]);
   return (
