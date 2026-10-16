@@ -190,3 +190,7 @@ Workspace and campaign JSON exports include linked strategies, generations, evid
 Campaign endpoints: `POST /api/campaigns` with `action: "preview"` for preview, otherwise creation; `GET /api/campaigns`; `GET/POST /api/campaigns/:id` for detail/controls (`run`, `pause`, `stop`, `approve`, `reject`); `/api/campaigns/:id/events` for SSE; `?export=1` for portable history. `GET/POST /api/strategies` handles immutable strategy revisions; `POST /api/local-team` records overrides/rollback with an expected active revision.
 
 Run `npm run improvement:smoke` after a production build for an isolated production-HTTP/worker mock campaign. It verifies pause/resume, generation, paired screening, evidence separation, replay frames, SSE and export without paid calls, writing `data/improvement-smoke-report.json`.
+
+## License
+
+[MIT](LICENSE). Use it, change it and share it; keep the copyright notice.
