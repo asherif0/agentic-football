@@ -1,15 +1,8 @@
 "use client";
 import { ROLES, type Role } from "../../lib/domain";
 import type { InferenceSettings } from "../../lib/simulation/types";
-export const defaultModels = () =>
-  Object.fromEntries(ROLES.map((r) => [r, "gpt-6-luna"])) as Record<
-    Role,
-    string
-  >;
-export const defaultInference = () =>
-  Object.fromEntries(
-    ROLES.map((r) => [r, { reasoningEffort: "low", maxOutputTokens: 1024 }]),
-  ) as Record<Role, InferenceSettings>;
+import { defaultModels, defaultInference } from "../lib/squad";
+export { defaultModels, defaultInference };
 export default function ModelAssignments({
   title,
   models,

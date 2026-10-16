@@ -1,0 +1,466 @@
+/*
+ * Styles for the retained record/campaign/collection tools in the Library.
+ * Everything is scoped under .legacy so it never leaks into new components.
+ */
+@layer legacy {
+  .legacy {
+    display: grid;
+    gap: 20px;
+    font-size: var(--fs-body);
+  }
+  .legacy h2 {
+    font-size: var(--fs-h2);
+  }
+  .legacy h3 {
+    font-size: var(--fs-h3);
+    font-weight: 500;
+    margin-bottom: 8px;
+  }
+  .legacy label {
+    display: grid;
+    gap: 6px;
+    color: var(--text-2);
+    font-size: var(--fs-small);
+  }
+  .legacy label > input[type="checkbox"] {
+    margin: 0;
+  }
+  .legacy pre {
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 12.5px;
+    line-height: 1.6;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+    max-height: 520px;
+    overflow: auto;
+  }
+  .legacy details > summary {
+    color: var(--text-2);
+    font-size: var(--fs-small);
+    padding: 6px 0;
+  }
+  .legacy details[open] > summary {
+    margin-bottom: 8px;
+  }
+
+  /* Buttons: default is the lime primary pill. */
+  .legacy button,
+  .legacy .file-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 36px;
+    padding: 0 16px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-size: var(--fs-small);
+    font-weight: 500;
+    white-space: nowrap;
+    transition:
+      background 0.15s,
+      border-color 0.15s,
+      transform 0.15s;
+  }
+  .legacy button:hover:not(:disabled) {
+    filter: brightness(0.96);
+  }
+  .legacy button:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+  .legacy button:disabled {
+    opacity: 0.45;
+  }
+  .legacy button.secondary,
+  .legacy .file-button {
+    background: transparent;
+    color: var(--text);
+    border-color: var(--border-strong);
+  }
+  .legacy button.secondary:hover:not(:disabled),
+  .legacy .file-button:hover {
+    background: var(--hover);
+    filter: none;
+  }
+  .legacy .file-button {
+    cursor: pointer;
+    width: fit-content;
+  }
+  .legacy .file-button input {
+    display: none;
+  }
+  .legacy button.text-button {
+    min-height: 0;
+    padding: 2px 0;
+    background: none;
+    border: 0;
+    border-radius: 0;
+    color: var(--text);
+    text-decoration: underline;
+    text-decoration-color: var(--border-strong);
+    text-underline-offset: 3px;
+    font-weight: 400;
+    white-space: normal;
+    text-align: left;
+    justify-content: flex-start;
+  }
+  .legacy button.text-button:hover {
+    text-decoration-color: currentColor;
+    filter: none;
+  }
+  .legacy button.icon-button {
+    width: 32px;
+    min-height: 32px;
+    padding: 0;
+    background: transparent;
+    color: var(--text-2);
+    border-color: var(--border);
+  }
+
+  .legacy .card,
+  .legacy .workspace-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    display: grid;
+    gap: 14px;
+    min-width: 0;
+  }
+  .legacy .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+  .legacy .toolbar > p {
+    margin-right: auto;
+    color: var(--text-3);
+  }
+  .legacy .section-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .legacy .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+  }
+  .legacy .muted,
+  .legacy small {
+    color: var(--text-3);
+  }
+  .legacy .empty {
+    padding: 28px;
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--radius);
+    color: var(--text-3);
+    text-align: center;
+  }
+  .legacy .error,
+  .legacy .notice {
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid;
+    font-size: var(--fs-small);
+  }
+  .legacy .error {
+    color: var(--bad-text);
+    border-color: color-mix(in srgb, var(--bad) 40%, transparent);
+    background: color-mix(in srgb, var(--bad) 8%, transparent);
+  }
+  .legacy .notice {
+    color: var(--text);
+    border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+    background: var(--accent-soft);
+  }
+  .legacy .badge {
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    padding: 0 9px;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--border-strong);
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-2);
+    white-space: nowrap;
+  }
+
+  /* Record editor */
+  .legacy .field {
+    display: grid;
+    gap: 8px;
+  }
+  .legacy .field > span {
+    color: var(--text-2);
+    font-size: var(--fs-small);
+    text-transform: capitalize;
+  }
+  .legacy .nested {
+    display: grid;
+    gap: 12px;
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+  }
+  .legacy .nested > div {
+    display: grid;
+    gap: 8px;
+    color: var(--text-2);
+  }
+  .legacy .checks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    padding: 12px 14px;
+    background: var(--surface-2);
+    border-radius: var(--radius-sm);
+  }
+  .legacy .checks label,
+  .legacy .check-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text);
+  }
+  .legacy .question {
+    display: flex;
+    gap: 8px;
+  }
+  .legacy .question input:nth-of-type(2) {
+    flex: 1;
+  }
+
+  /* Record browser */
+  .legacy .record-browser {
+    display: grid;
+    gap: 24px;
+  }
+  .legacy .record-browser.has-detail {
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    align-items: start;
+  }
+  .legacy .record-index,
+  .legacy .record-detail {
+    min-width: 0;
+    display: grid;
+    gap: 14px;
+    align-content: start;
+  }
+  .legacy .record-index input[type="search"] {
+    flex: 1;
+    min-width: 160px;
+    width: auto;
+  }
+  .legacy .record-index select {
+    width: auto;
+  }
+  .legacy .record-index td small {
+    display: block;
+    color: var(--text-3);
+  }
+  .legacy .record-index tr[aria-selected="true"] td {
+    background: var(--accent-soft);
+  }
+  .legacy .record-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .legacy .record-meta small {
+    font-family: var(--font-mono);
+  }
+  .legacy .pagination {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--text-3);
+  }
+  .legacy .roles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 8px;
+  }
+  .legacy .roles > div {
+    display: grid;
+    gap: 6px;
+    align-content: start;
+    padding: 12px;
+    background: var(--surface-2);
+    border-radius: var(--radius-sm);
+  }
+  .legacy .roles b {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: var(--fs-small);
+  }
+  .legacy .roles small {
+    color: var(--text-3);
+  }
+  .legacy .table-scroll,
+  .legacy .table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+  .legacy .table-subtitle {
+    color: var(--text-3);
+    font-size: var(--fs-small);
+  }
+  .legacy .selected-row td {
+    background: var(--accent-soft);
+  }
+  .legacy .filter-bar,
+  .legacy .filter-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: flex-end;
+  }
+  .legacy .filter-bar > *,
+  .legacy .filter-grid > * {
+    flex: 1 1 160px;
+  }
+
+  /* Campaigns, collections, benchmarks */
+  .legacy .metric-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .legacy .metric-strip > div {
+    padding: 16px 18px;
+    border-right: 1px solid var(--border);
+    display: grid;
+    gap: 4px;
+  }
+  .legacy .metric-strip span {
+    font-family: var(--font-mono);
+    font-size: var(--fs-micro);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-3);
+  }
+  .legacy .metric-strip strong {
+    font-size: 1.5rem;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+  }
+  .legacy .campaign-workspace,
+  .legacy .collection-workspace,
+  .legacy .campaign-detail,
+  .legacy .proposal-review {
+    display: grid;
+    gap: 20px;
+  }
+  .legacy .campaign-config,
+  .legacy .collection-fields,
+  .legacy .benchmark-setup fieldset {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+    border: 0;
+    margin: 0;
+    padding: 0;
+  }
+  .legacy .evidence-options,
+  .legacy .collection-evidence-list {
+    max-height: 420px;
+    overflow: auto;
+    display: grid;
+    gap: 6px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+  }
+  .legacy .collection-evidence-list th {
+    position: sticky;
+    top: 0;
+    background: var(--bg-raised);
+  }
+  .legacy .proposal-columns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+    align-items: start;
+  }
+  .legacy .evidence-citations span {
+    display: inline-block;
+    margin-right: 12px;
+  }
+  .legacy .prompt-text,
+  .legacy .prompt {
+    font-family: var(--font-mono);
+  }
+  .legacy .strategy-brief {
+    padding: 14px 16px;
+    border-left: 2px solid var(--accent);
+    background: var(--surface-2);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  }
+  .legacy .benchmark-status {
+    display: grid;
+    gap: 6px;
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+  }
+  .legacy .segmented {
+    display: inline-flex;
+    gap: 4px;
+    padding: 4px;
+    background: var(--surface-2);
+    border-radius: var(--radius-pill);
+  }
+  .legacy .segmented button {
+    background: transparent;
+    color: var(--text-2);
+    min-height: 30px;
+  }
+  .legacy .segmented button[aria-selected="true"] {
+    background: var(--bg-raised);
+    color: var(--text);
+    box-shadow: var(--shadow-1);
+  }
+
+  /* Model assignments (opponent models) */
+  .legacy .model-role-grid,
+  .legacy .inference-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+  }
+
+  @media (max-width: 1100px) {
+    .legacy .record-browser.has-detail {
+      grid-template-columns: 1fr;
+    }
+    .legacy .record-browser.has-detail .record-index {
+      display: none;
+    }
+  }
+  @media (max-width: 700px) {
+    .legacy .proposal-columns {
+      grid-template-columns: 1fr;
+    }
+    .legacy .card,
+    .legacy .workspace-section {
+      padding: 18px;
+    }
+  }
+}

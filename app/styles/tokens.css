@@ -1,0 +1,159 @@
+/* Cascade order: global layers first; CSS Modules are unlayered and always win. */
+@layer reset, base, legacy;
+
+/* Light palette (default). Dark redefines the same tokens below. */
+:root {
+  color-scheme: light;
+  --bg: #ffffff;
+  --bg-raised: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #f5f5f5;
+  --surface-3: #ebebeb;
+  --hover: #0000000a;
+  --border: #0000001a;
+  --border-strong: #00000033;
+  --text: #0a0a0a;
+  --text-2: #575757;
+  --text-3: #737373;
+  --inverse: #0a0a0a;
+  --inverse-text: #ffffff;
+
+  /* Brand lime: a fill (with black ink), ring or glow — never text on white. */
+  --accent: #d3ee51;
+  --accent-ink: #0a0a0a;
+  --accent-soft: #d3ee5140;
+  --accent-strong: #5f7a00;
+
+  --good: #0ca30c;
+  --good-text: #006300;
+  --warn: #fab219;
+  --bad: #d03b3b;
+  --bad-text: #b42323;
+
+  /* Data series (validated categorical order: blue, orange, aqua). */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-other: #898781;
+  --chart-grid: #e8e7e1;
+  --chart-axis: #c3c2b7;
+  --seq-1: #cde2fb;
+  --seq-2: #86b6ef;
+  --seq-3: #3987e5;
+  --seq-4: #1c5cab;
+  --seq-5: #0d366b;
+
+  /* Instruments stay black in both themes (rail, pitch). */
+  --rail-bg: #000000;
+  --rail-text: #ffffff;
+  --rail-muted: #8c8c8c;
+  --rail-border: #ffffff14;
+  --pitch-bg: #060606;
+  --pitch-line: #ffffff2e;
+  --pitch-grid: #ffffff0a;
+  --pitch-away: #f4f4f4;
+
+  --shadow-1: 0 1px 2px #0000000a, 0 4px 16px #00000008;
+  --shadow-2: 0 8px 40px #00000014, 0 2px 6px #0000000a;
+  --overlay: #00000059;
+  --glass: #ffffffcc;
+
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius: 16px;
+  --radius-lg: 24px;
+  --radius-pill: 999px;
+
+  --font-sans:
+    var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    sans-serif;
+  --font-mono:
+    var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --fs-display: clamp(2.5rem, 1.6rem + 3.2vw, 4.25rem);
+  --fs-h1: clamp(2rem, 1.6rem + 1.4vw, 2.75rem);
+  --fs-h2: 1.375rem;
+  --fs-h3: 1rem;
+  --fs-body: 0.875rem;
+  --fs-small: 0.8125rem;
+  --fs-micro: 0.6875rem;
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --rail-w: 232px;
+  --topbar-h: 60px;
+  --gutter: clamp(16px, 3vw, 40px);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #000000;
+  --bg-raised: #0b0b0b;
+  --surface: #ffffff06;
+  --surface-2: #ffffff0d;
+  --surface-3: #ffffff17;
+  --hover: #ffffff0f;
+  --border: #ffffff1a;
+  --border-strong: #ffffff33;
+  --text: #ffffff;
+  --text-2: #a3a3a3;
+  --text-3: #8c8c8c;
+  --inverse: #ffffff;
+  --inverse-text: #0a0a0a;
+  --accent-soft: #d3ee5126;
+  --accent-strong: #d3ee51;
+  --good-text: #3fc23f;
+  --bad-text: #ef6b6b;
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --chart-grid: #232322;
+  --chart-axis: #383835;
+  --seq-1: #13253d;
+  --seq-2: #184f95;
+  --seq-3: #2a78d6;
+  --seq-4: #6da7ec;
+  --seq-5: #cde2fb;
+  --rail-border: #ffffff1a;
+  --shadow-1: 0 0 0 1px #ffffff0a;
+  --shadow-2: 0 12px 48px #000000b3, 0 0 0 1px #ffffff14;
+  --overlay: #000000a6;
+  --glass: #000000b8;
+}
+
+/* No-JS fallback: follow the OS unless light was chosen explicitly. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --bg: #000000;
+    --bg-raised: #0b0b0b;
+    --surface: #ffffff06;
+    --surface-2: #ffffff0d;
+    --surface-3: #ffffff17;
+    --hover: #ffffff0f;
+    --border: #ffffff1a;
+    --border-strong: #ffffff33;
+    --text: #ffffff;
+    --text-2: #a3a3a3;
+    --text-3: #8c8c8c;
+    --inverse: #ffffff;
+    --inverse-text: #0a0a0a;
+    --accent-soft: #d3ee5126;
+    --accent-strong: #d3ee51;
+    --good-text: #3fc23f;
+    --bad-text: #ef6b6b;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --chart-grid: #232322;
+    --chart-axis: #383835;
+    --seq-1: #13253d;
+    --seq-2: #184f95;
+    --seq-3: #2a78d6;
+    --seq-4: #6da7ec;
+    --seq-5: #cde2fb;
+    --shadow-1: 0 0 0 1px #ffffff0a;
+    --shadow-2: 0 12px 48px #000000b3, 0 0 0 1px #ffffff14;
+    --overlay: #000000a6;
+    --glass: #000000b8;
+  }
+}

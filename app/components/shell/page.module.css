@@ -1,0 +1,109 @@
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px 32px;
+  margin-bottom: 32px;
+}
+.headText {
+  display: grid;
+  gap: 12px;
+  max-width: 760px;
+}
+.step {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.stepNum {
+  display: inline-grid;
+  place-items: center;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+}
+.title {
+  font-size: var(--fs-h1);
+  font-weight: 400;
+  letter-spacing: -0.035em;
+  line-height: 1.04;
+}
+.description {
+  color: var(--text-2);
+  font-size: 0.9375rem;
+  max-width: 62ch;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.next {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 18px 24px;
+  margin-top: 56px;
+  padding: 26px 28px;
+  border-radius: var(--radius-lg);
+  background: var(--rail-bg);
+  color: #fff;
+  text-decoration: none;
+  overflow: hidden;
+  position: relative;
+  isolation: isolate;
+}
+.next::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(420px 160px at 92% 50%, #d3ee5126, transparent 70%),
+    repeating-linear-gradient(90deg, #ffffff08 0 1px, transparent 1px 48px);
+  transition: opacity 0.3s;
+}
+.nextStep {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.nextTitle {
+  font-size: 1.375rem;
+  font-weight: 400;
+  letter-spacing: -0.03em;
+}
+.nextBlurb {
+  color: #a3a3a3;
+  margin-top: 2px;
+}
+.nextArrow {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #0a0a0a;
+  transition: transform 0.3s var(--ease-out);
+}
+.next:hover .nextArrow {
+  transform: translateX(4px);
+}
+@media (max-width: 640px) {
+  .next {
+    grid-template-columns: 1fr auto;
+  }
+  .nextStep {
+    grid-column: 1 / -1;
+  }
+}
