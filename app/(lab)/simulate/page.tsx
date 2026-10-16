@@ -1,8 +1,13 @@
 import type { Metadata } from "next";
-import { LegacySimulate } from "../../components/LegacyMounts";
+import { Suspense } from "react";
+import SimulateView from "../../components/simulate/SimulateView";
 
 export const metadata: Metadata = { title: "Simulate" };
 
-export default function Page() {
-  return <LegacySimulate />;
+export default function SimulatePage() {
+  return (
+    <Suspense>
+      <SimulateView />
+    </Suspense>
+  );
 }

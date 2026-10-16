@@ -74,3 +74,19 @@ test("clock formats match time", () => {
   assert.equal(clock(0), "00:00.0");
   assert.equal(clock(65.25), "01:05.3");
 });
+
+import { prettyAction } from "../app/lib/actions";
+test("prettyAction strips embedded coordinates", () => {
+  assert.deepEqual(prettyAction('move back to {"x":0.5847,"y":0.3424}'), {
+    text: "Move back",
+    target: "58% · 34%",
+  });
+  assert.deepEqual(prettyAction('Pass to FOR2 at {"x":0.7,"y":0.25}'), {
+    text: "Pass to FOR2",
+    target: "70% · 25%",
+  });
+  assert.deepEqual(prettyAction("Hold current position"), {
+    text: "Hold current position",
+    target: null,
+  });
+});

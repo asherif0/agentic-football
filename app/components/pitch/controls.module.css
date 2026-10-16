@@ -1,0 +1,225 @@
+.timeline {
+  position: relative;
+  display: grid;
+  gap: 6px;
+}
+.track {
+  position: relative;
+  height: 34px;
+}
+.rail {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 22px;
+  height: 4px;
+  border-radius: 4px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 100%;
+  transform-origin: 0 50%;
+  background: var(--text);
+}
+.scrub {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 14px;
+  width: 100%;
+  height: 20px;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.head {
+  position: absolute;
+  top: 18px;
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  border-radius: 50%;
+  background: var(--text);
+  box-shadow: 0 0 0 3px var(--bg);
+  pointer-events: none;
+}
+.scrub:focus-visible ~ .head {
+  box-shadow:
+    0 0 0 3px var(--bg),
+    0 0 0 5px var(--accent);
+}
+.marker {
+  position: absolute;
+  top: 0;
+  translate: -50% 0;
+  display: grid;
+  place-items: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--bg-raised);
+  color: var(--text-2);
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  line-height: 1;
+  z-index: 2;
+  transition:
+    transform 0.15s,
+    background 0.15s;
+}
+.marker:hover,
+.marker[aria-expanded="true"] {
+  transform: translateY(-2px);
+  border-color: var(--text);
+  color: var(--text);
+}
+.markerGoal {
+  background: var(--accent);
+  border-color: transparent;
+  color: #0a0a0a;
+}
+.markerGoal:hover,
+.markerGoal[aria-expanded="true"] {
+  border-color: transparent;
+  color: #0a0a0a;
+}
+.markerStem {
+  position: absolute;
+  top: 16px;
+  width: 1px;
+  height: 8px;
+  background: var(--border-strong);
+  translate: -50% 0;
+}
+.callout {
+  position: absolute;
+  z-index: 20;
+  bottom: 40px;
+  width: min(340px, 100%);
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-2);
+  display: grid;
+  gap: 10px;
+}
+.calloutHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.calloutEvent {
+  display: grid;
+  gap: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.calloutEvent p {
+  color: var(--text-2);
+  font-size: var(--fs-small);
+}
+.linkButton {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-size: var(--fs-small);
+  font-weight: 500;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: var(--border-strong);
+  text-underline-offset: 3px;
+}
+.linkButton:hover {
+  text-decoration-color: currentColor;
+}
+
+/* Transport */
+.transport {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.tbtn {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-2);
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.tbtn:hover:not(:disabled) {
+  background: var(--hover);
+  color: var(--text);
+}
+.tbtn:disabled {
+  opacity: 0.35;
+}
+.play {
+  width: 46px;
+  height: 46px;
+  background: var(--accent);
+  color: #0a0a0a;
+  transition: transform 0.2s var(--ease-out);
+}
+.play:hover:not(:disabled) {
+  background: var(--accent);
+  color: #0a0a0a;
+  transform: scale(1.06);
+}
+.clock {
+  margin: 0 8px;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.clock span {
+  color: var(--text-3);
+}
+.spacer {
+  flex: 1;
+}
+.live {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  font-size: 12px;
+  color: var(--text-2);
+}
+.live[aria-pressed="true"] {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--bad) 60%, transparent);
+}
+.liveDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--bad);
+  animation: blink 1.2s infinite;
+}
+@keyframes blink {
+  50% {
+    opacity: 0.25;
+  }
+}

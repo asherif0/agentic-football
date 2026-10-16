@@ -90,8 +90,10 @@ export function trail(
 }
 
 /** Decision traces grouped per player and sorted by time. */
-export function tracesByPlayer(traces: DecisionTrace[]) {
-  const by = new Map<string, DecisionTrace[]>();
+export function tracesByPlayer<
+  T extends Pick<DecisionTrace, "playerId" | "time">,
+>(traces: T[]) {
+  const by = new Map<string, T[]>();
   for (const t of traces) {
     const list = by.get(t.playerId) ?? [];
     list.push(t);

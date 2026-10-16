@@ -2,12 +2,10 @@
 // Temporary bridges that mount pre-revamp views on the new routes while each
 // page is rebuilt. Removed once every route has its new view.
 import { useRouter } from "next/navigation";
-import { invalidate } from "../lib/data/cache";
 import { useWorkspace } from "../lib/data/hooks";
 import Analytics from "./Analytics";
 import PrepareWorkspace from "./PrepareWorkspace";
 import PromptBrowser from "./PromptBrowser";
-import Simulation from "./Simulation";
 import { Skeleton } from "./ui/primitives";
 
 function useW() {
@@ -23,26 +21,6 @@ export function LegacySquad() {
         workspace={w}
         onContinue={() => router.push("/simulate")}
         onPositions={() => router.push("/simulate")}
-      />
-    </div>
-  );
-}
-export function LegacySimulate() {
-  const w = useW(),
-    router = useRouter();
-  if (!w) return <Skeleton height={320} />;
-  return (
-    <div className="legacy">
-      <Simulation
-        workspace={w}
-        requestedRunId={null}
-        onRequestHandled={() => {}}
-        onAnnotate={async (matchId, time, observation) => {
-          invalidate("workspace");
-          router.push(
-            `/library/annotations?draft=new&match=${matchId}&t=${time}&obs=${encodeURIComponent(observation)}`,
-          );
-        }}
       />
     </div>
   );

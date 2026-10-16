@@ -22,6 +22,8 @@ type ButtonProps = {
   iconRight?: IconName;
   href?: string;
   external?: boolean;
+  /** Renders a plain anchor that saves the response under this file name. */
+  download?: string;
   ref?: Ref<HTMLButtonElement>;
 } & ButtonHTMLAttributes<HTMLButtonElement>;
 
@@ -32,6 +34,7 @@ export function Button({
   iconRight,
   href,
   external,
+  download,
   className,
   children,
   ...rest
@@ -58,6 +61,12 @@ export function Button({
       )}
     </>
   );
+  if (href && download)
+    return (
+      <a href={href} download={download} className={cls}>
+        {inner}
+      </a>
+    );
   if (href)
     return external ? (
       <a

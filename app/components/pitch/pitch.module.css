@@ -1,0 +1,146 @@
+.svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 43.2 / 23.2;
+  background: var(--pitch-bg);
+  border-radius: var(--radius-lg);
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+.stripe {
+  fill: #ffffff05;
+}
+.grid line {
+  stroke: var(--pitch-grid);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.lines * {
+  fill: none;
+  stroke: var(--pitch-line);
+  stroke-width: 1.2;
+  vector-effect: non-scaling-stroke;
+}
+.lines .spot {
+  fill: var(--pitch-line);
+  stroke: none;
+}
+.goal {
+  fill: #ffffff0d !important;
+  stroke: #ffffff59 !important;
+}
+.dir {
+  font-family: var(--font-mono);
+  font-size: 0.62px;
+  letter-spacing: 0.08em;
+  fill: #ffffff59;
+  text-transform: uppercase;
+}
+
+/* Players */
+.player {
+  cursor: pointer;
+  outline: none;
+}
+.disc {
+  stroke-width: 0.08;
+  transition: r 0.2s;
+}
+.ours .disc {
+  fill: var(--accent);
+  stroke: #0a0a0a;
+}
+.theirs .disc {
+  fill: #0d0d0d;
+  stroke: var(--pitch-away);
+  stroke-width: 0.1;
+}
+.role {
+  font-family: var(--font-mono);
+  font-size: 0.42px;
+  font-weight: 600;
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
+}
+.ours .role {
+  fill: #0a0a0a;
+}
+.theirs .role {
+  fill: #f4f4f4;
+}
+.modelRing {
+  fill: none;
+  stroke-width: 0.16;
+}
+.player:hover .disc,
+.player:focus-visible .disc {
+  stroke: #fff;
+  stroke-width: 0.14;
+}
+.player:focus-visible .hit {
+  stroke: var(--accent);
+  stroke-width: 0.08;
+  stroke-dasharray: 0.2 0.15;
+}
+.hit {
+  fill: transparent;
+}
+.select {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 0.09;
+  stroke-dasharray: 0.35 0.22;
+  pointer-events: none;
+}
+.possession {
+  fill: none;
+  stroke: #ffffffcc;
+  stroke-width: 0.07;
+  pointer-events: none;
+}
+
+/* Ball */
+.ball {
+  fill: #fff;
+  filter: drop-shadow(0 0 2px #ffffffaa);
+  pointer-events: none;
+}
+.trail {
+  fill: none;
+  stroke: #ffffff8c;
+  stroke-width: 0.14;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+.intent {
+  stroke: var(--accent);
+  stroke-width: 0.07;
+  stroke-dasharray: 0.25 0.2;
+  stroke-linecap: round;
+  opacity: 0.55;
+  pointer-events: none;
+}
+.intentHead {
+  fill: var(--accent);
+  opacity: 0.7;
+  pointer-events: none;
+}
+.pulse {
+  fill: none;
+  stroke-width: 0.1;
+  pointer-events: none;
+}
+.goalText {
+  font-family: var(--font-sans);
+  font-size: 3.4px;
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  text-anchor: middle;
+  dominant-baseline: central;
+  fill: var(--accent);
+  pointer-events: none;
+}
