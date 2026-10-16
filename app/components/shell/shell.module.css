@@ -182,29 +182,6 @@
   align-items: center;
   gap: 10px;
 }
-.squadChip {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  height: 34px;
-  padding: 0 14px 0 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-pill);
-  color: var(--text);
-  text-decoration: none;
-  font-size: var(--fs-small);
-  white-space: nowrap;
-  transition:
-    border-color 0.15s,
-    background 0.15s;
-}
-.squadChip:hover {
-  border-color: var(--border-strong);
-  background: var(--hover);
-}
-.squadMeta {
-  color: var(--text-3);
-}
 .content {
   flex: 1;
   width: 100%;
@@ -293,20 +270,11 @@
     padding-top: env(safe-area-inset-top, 0px);
     height: calc(var(--topbar-h) + env(safe-area-inset-top, 0px));
   }
-  .squadMeta {
-    display: none;
-  }
   .content {
     padding-top: 24px;
   }
 }
 @media (max-width: 520px) {
-  .squadChip {
-    padding: 0 12px;
-  }
-  .squadLabel {
-    display: none;
-  }
   .crumbs > span:first-child,
   .crumbs > svg {
     display: none;

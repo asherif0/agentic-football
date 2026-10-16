@@ -5,7 +5,6 @@ import { PreparationGate, PreparationProvider } from "../Preparation";
 import { Button, Skeleton } from "../ui/primitives";
 import { Icon } from "../ui/Icon";
 import { NavRail } from "./NavRail";
-import { SquadChip } from "./SquadChip";
 import { ThemeToggle } from "./ThemeToggle";
 import { Toaster } from "./Toaster";
 import { LIBRARY, NAV, activeHref } from "./nav";
@@ -59,7 +58,6 @@ export function AppShell({ children }: { children: ReactNode }) {
               <strong>{current?.label ?? "Lab"}</strong>
             </div>
             <div className={s.topRight}>
-              <SquadChip />
               <ThemeToggle />
             </div>
           </header>
