@@ -3,25 +3,11 @@
 // page is rebuilt. Removed once every route has its new view.
 import { useRouter } from "next/navigation";
 import { useWorkspace } from "../lib/data/hooks";
-import Analytics from "./Analytics";
 import PromptBrowser from "./PromptBrowser";
 import { Skeleton } from "./ui/primitives";
 
 function useW() {
   return useWorkspace().data?.records;
-}
-export function LegacyAnalytics() {
-  const w = useW(),
-    router = useRouter();
-  if (!w) return <Skeleton height={320} />;
-  return (
-    <div className="legacy">
-      <Analytics
-        workspace={w}
-        onReplay={(id) => router.push(`/simulate?run=${id}`)}
-      />
-    </div>
-  );
 }
 export function LegacyPrompts() {
   const w = useW(),

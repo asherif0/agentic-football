@@ -1,8 +1,13 @@
 import type { Metadata } from "next";
-import { LegacyAnalytics } from "../../components/LegacyMounts";
+import { Suspense } from "react";
+import AnalyticsView from "../../components/analytics/AnalyticsView";
 
 export const metadata: Metadata = { title: "Analytics" };
 
-export default function Page() {
-  return <LegacyAnalytics />;
+export default function AnalyticsPage() {
+  return (
+    <Suspense>
+      <AnalyticsView />
+    </Suspense>
+  );
 }
