@@ -1,8 +1,13 @@
 import type { Metadata } from "next";
-import { LegacyPrompts } from "../../components/LegacyMounts";
+import { Suspense } from "react";
+import PromptsView from "../../components/prompts/PromptsView";
 
 export const metadata: Metadata = { title: "Prompts" };
 
-export default function Page() {
-  return <LegacyPrompts />;
+export default function PromptsPage() {
+  return (
+    <Suspense>
+      <PromptsView />
+    </Suspense>
+  );
 }
