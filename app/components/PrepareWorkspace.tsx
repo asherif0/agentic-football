@@ -36,7 +36,7 @@ export default function PrepareWorkspace({
   useEffect(() => {
     Promise.all([
       fetch("/api/campaigns").then((r) => r.json()),
-      fetch("/api/simulation").then((r) => r.json()),
+      fetch("/api/runs").then((r) => r.json()),
     ])
       .then(([a, b]) => {
         setStrategies(a.strategies || []);
@@ -149,7 +149,7 @@ export default function PrepareWorkspace({
           <ScenarioEditor
             workspace={w}
             onSaved={() =>
-              fetch("/api/simulation")
+              fetch("/api/runs")
                 .then((r) => r.json())
                 .then((d) => setScenarios(d.scenarios || []))
             }

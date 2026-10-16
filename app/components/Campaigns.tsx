@@ -91,7 +91,7 @@ export default function Campaigns({
   }
   useEffect(() => {
     refresh().catch((e) => setError(e.message));
-    fetch("/api/simulation")
+    fetch("/api/runs")
       .then((r) => r.json())
       .then((d) => setAvailable(d.runs || []))
       .catch(() => {});
@@ -302,7 +302,7 @@ export default function Campaigns({
             </p>
             <div className="evidence-options">
               {available
-                .filter((r) => r.config.team.id === p.team)
+                .filter((r) => r.team.id === p.team)
                 .slice(0, 30)
                 .map((r) => (
                   <label className="check-row" key={r.id}>
@@ -317,7 +317,7 @@ export default function Campaigns({
                         )
                       }
                     />
-                    {r.config.label} · {r.status}
+                    {r.label} · {r.status}
                   </label>
                 ))}
             </div>

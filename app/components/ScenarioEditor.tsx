@@ -27,7 +27,7 @@ export default function ScenarioEditor({
     drag = useRef<Role | null>(null);
   const formationId = w.teams.find((t) => t.id === p.team)?.formationId;
   useEffect(() => {
-    fetch("/api/simulation")
+    fetch("/api/runs")
       .then((r) => r.json())
       .then((d) => {
         const sc =

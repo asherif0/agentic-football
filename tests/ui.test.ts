@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { clusterEvents } from "../app/components/ReplayTimeline";
+import { clusterEvents } from "../app/lib/timeline";
 import type { Event } from "../lib/simulation/types";
 const event = (id: number, time: number): Event => ({
   id,
