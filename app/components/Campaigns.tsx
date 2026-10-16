@@ -221,7 +221,7 @@ export default function Campaigns({
           <div className="campaign-context">
             <strong>
               {w.teams.find((t) => t.id === p.team)?.label ||
-                "Select a team in Prepare"}
+                "Choose a squad on the Squad page"}
             </strong>
             <span>
               {p.provider} · {p.duration}s matches · API key{" "}
@@ -230,7 +230,7 @@ export default function Campaigns({
             <span>
               Strategy:{" "}
               {index.strategies.find((s) => s.id === p.strategy)?.label ||
-                "Select a strategy in Prepare"}
+                "choose one above"}
             </span>
           </div>
           <div className="filter-bar">
@@ -412,8 +412,8 @@ export default function Campaigns({
       </div>
       {!index.campaigns.length ? (
         <p className="empty">
-          No campaigns yet. Prepare a team and strategy, then start a bounded
-          campaign in Simulate.
+          No campaigns yet. Choose a strategy above, then start a bounded
+          campaign.
         </p>
       ) : (
         <div className="table-wrap">
@@ -571,10 +571,10 @@ export default function Campaigns({
                   duration: c.manifest.baseline.duration,
                   strategy: c.manifest.strategy.id,
                 }));
-                setNotice("Campaign team and settings loaded into Prepare.");
+                setNotice("Campaign team and settings loaded into your squad.");
               }}
             >
-              Use incumbent in Prepare
+              Use incumbent as squad
             </button>
           </div>
           <div className="table-wrap">

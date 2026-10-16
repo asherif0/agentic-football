@@ -18,7 +18,7 @@ export function SquadChip() {
   return (
     <Link href="/squad" className={s.squadChip} title="Edit squad">
       <ModelMix models={p.models} />
-      <span>{team?.label ?? "Choose a squad"}</span>
+      <span className={s.squadLabel}>{team?.label ?? "Choose a squad"}</span>
       {formation && (
         <span className={s.squadMeta}>
           {formation.family}

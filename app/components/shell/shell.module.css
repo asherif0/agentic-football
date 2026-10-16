@@ -137,6 +137,15 @@
   border-radius: 50%;
   background: #4d4d4d;
 }
+.wake {
+  margin-left: auto;
+  padding: 2px 8px;
+  border: 1px solid #ffffff33;
+  border-radius: 999px;
+  background: transparent;
+  color: #fff;
+  font-size: 11px;
+}
 .workerOn {
   background: var(--accent);
   box-shadow: 0 0 0 3px #d3ee5133;
@@ -300,8 +309,10 @@
 }
 @media (max-width: 520px) {
   .squadChip {
-    max-width: 150px;
-    overflow: hidden;
+    padding: 0 12px;
+  }
+  .squadLabel {
+    display: none;
   }
   .crumbs > span:first-child,
   .crumbs > svg {

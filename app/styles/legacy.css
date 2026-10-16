@@ -368,7 +368,6 @@
     display: grid;
     gap: 20px;
   }
-  .legacy .campaign-config,
   .legacy .collection-fields,
   .legacy .benchmark-setup fieldset {
     display: grid;
@@ -377,6 +376,19 @@
     border: 0;
     margin: 0;
     padding: 0;
+  }
+  .legacy .campaign-context {
+    display: grid;
+    gap: 4px;
+    padding: 12px 14px;
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+    font-size: var(--fs-small);
+  }
+  .legacy details.workspace-section > summary {
+    color: var(--text);
+    font-size: 0.9375rem;
+    font-weight: 500;
   }
   .legacy .evidence-options,
   .legacy .collection-evidence-list {
