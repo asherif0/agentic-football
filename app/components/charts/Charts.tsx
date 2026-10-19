@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { gsap, useGSAP, reducedMotion } from "../../lib/motion";
 import { Segmented } from "../ui/Segmented";
+import { placeTags } from "../../lib/chart-layout";
 import s from "./charts.module.css";
 
 /* ───────── shared helpers ───────── */
@@ -759,6 +760,12 @@ export function Scatter({
     yMax = yAbs;
   const x = scale(xMin, xMax, left, width - right),
     y = scale(yMin, yMax, height - bottom, top);
+  const tags = placeTags(
+    valid.map((p) => ({ id: p.id, tag: p.tag, x: x(p.x), y: y(p.y) })),
+    width,
+    height,
+    left,
+  );
   return (
     <div ref={box} className={`${s.plot} ${active ? s.dim : ""}`}>
       {width > 0 && (
@@ -851,14 +858,13 @@ export function Scatter({
                   color={p.color}
                 />
               </g>
-              {p.tag && (
+              {tags.get(p.id) && (
                 <text
-                  className={s.value}
-                  x={x(p.x) + 10}
-                  y={y(p.y)}
+                  className={`${s.value} ${s.halo}`}
+                  x={tags.get(p.id)!.x}
+                  y={tags.get(p.id)!.y}
                   dominantBaseline="central"
-                  textAnchor={x(p.x) > width - 80 ? "end" : "start"}
-                  dx={x(p.x) > width - 80 ? -20 : 0}
+                  textAnchor={tags.get(p.id)!.anchor}
                 >
                   {p.tag}
                 </text>

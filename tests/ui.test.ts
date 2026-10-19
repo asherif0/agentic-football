@@ -30,3 +30,31 @@ test("timeline clustering adapts to narrow viewports and handles no events", () 
   assert.deepEqual(clusterEvents([], 0, 320), []);
   assert.ok(clusterEvents([event(1, 0)], 0, 0).length === 1);
 });
+
+import { placeTags } from "../app/lib/chart-layout";
+test("scatter tags never overlap and drop when there is no room", () => {
+  const tags = placeTags(
+    [
+      { id: "a", tag: "Luna", x: 100, y: 100 },
+      { id: "b", tag: "Luna", x: 104, y: 100 },
+      { id: "c", tag: "Sol", x: 300, y: 100 },
+    ],
+    400,
+    200,
+  );
+  const a = tags.get("a")!,
+    b = tags.get("b")!;
+  assert.ok(a && b && tags.get("c"));
+  assert.notDeepEqual([a.x, a.y], [b.x, b.y]);
+  const crowded = placeTags(
+    Array.from({ length: 12 }, (_, i) => ({
+      id: String(i),
+      tag: "Model",
+      x: 50 + i,
+      y: 50,
+    })),
+    120,
+    100,
+  );
+  assert.ok(crowded.size < 12);
+});
