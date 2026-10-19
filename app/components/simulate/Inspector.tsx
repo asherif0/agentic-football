@@ -9,6 +9,7 @@ import { int, ms, pct, usd } from "../../lib/format";
 import { clock, currentDecision } from "../../lib/playback";
 import { eventName } from "../../lib/timeline";
 import { prettyAction } from "../../lib/actions";
+import { isJev } from "../../lib/models";
 import { toast } from "../../lib/toast";
 import { Badge, Button, ModelChip, Notice } from "../ui/primitives";
 import { Segmented } from "../ui/Segmented";
@@ -192,9 +193,11 @@ function PlayerPanel({
           </dd>
           <dt>Reasoning</dt>
           <dd>
-            {team.inference?.[role]
-              ? `${team.inference[role].reasoningEffort} · ${int(team.inference[role].maxOutputTokens)} max out`
-              : "Provider default"}
+            {isJev(team.models[role])
+              ? "Not used by Jev"
+              : team.inference?.[role]
+                ? `${team.inference[role].reasoningEffort} · ${int(team.inference[role].maxOutputTokens)} max out`
+                : "Provider default"}
           </dd>
         </dl>
       )}

@@ -1,5 +1,6 @@
 import { STARTER_LAYOUTS } from "../catalog";
 import { PRICING } from "./pricing";
+import { requiredKeys } from "./providers";
 import type Database from "better-sqlite3";
 import { createStore } from "../store";
 import { ROLES, Role, Workspace } from "../domain";
@@ -184,8 +185,23 @@ export function simulationRepository(store = createStore()) {
   function buildConfig(input: any): RunConfig {
     if (!["decisions", "responses", "mock"].includes(input.provider))
       throw new Error("Choose a valid provider.");
-    if (input.provider !== "mock" && !process.env.OPENAI_API_KEY)
-      throw new Error("OPENAI_API_KEY is not configured on the server.");
+    if (input.provider !== "mock") {
+      const need = requiredKeys([
+        ...Object.values((input.models ?? {}) as Record<string, string>),
+        ...(input.opponentTeamId
+          ? Object.values(
+              (input.opponentModels ?? {}) as Record<string, string>,
+            )
+          : []),
+      ]);
+      if (
+        (need.openai || input.provider === "decisions") &&
+        !process.env.OPENAI_API_KEY
+      )
+        throw new Error("OPENAI_API_KEY is not configured on the server.");
+      if (need.jev && !process.env.JEV_API_KEY)
+        throw new Error("JEV_API_KEY is not configured on the server.");
+    }
     for (const [key, min, max] of [
       ["duration", 1, 600],
       ["interval", 0.25, 3],

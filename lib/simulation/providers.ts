@@ -60,6 +60,128 @@ export class ProviderFailure extends Error {
     super(message);
   }
 }
+/** TypeSafe's Jev decision models ("jev-1.13.0", "jev-latest", …). */
+export const isJevModel = (model: string) => /^jev-/.test(model);
+export const JEV_INSTRUCTIONS =
+  "Select the legal action that best executes this player role in the observed state.";
+
+/** Which server-side keys a set of models needs (mock needs none). */
+export function requiredKeys(models: string[]) {
+  return {
+    openai: models.some((m) => !isJevModel(m)),
+    jev: models.some(isJevModel),
+  };
+}
+
+class JevRequestError extends Error {
+  constructor(
+    message: string,
+    public status?: number,
+    name?: string,
+  ) {
+    super(message);
+    if (name) this.name = name;
+  }
+}
+
+export function jevPayload(input: DecisionInput) {
+  return {
+    model: input.model,
+    state: {
+      simulator: SIM_INSTRUCTIONS,
+      rolePrompt: input.prompt,
+      player: input.player.id,
+      observation: input.observation,
+    },
+    questions: {
+      player_action: {
+        type: "choice" as const,
+        instructions: JEV_INSTRUCTIONS,
+        criteria: Object.fromEntries(
+          input.actions.map((a) => [a.id, a.description]),
+        ),
+      },
+    },
+  };
+}
+
+/**
+ * One decision from TypeSafe's System One API (POST /v1/systemone). Jev
+ * returns the chosen option with per-option probabilities; output tokens are
+ * free, so only input tokens carry cost.
+ */
+export async function jevDecision(
+  input: DecisionInput,
+  signal: AbortSignal,
+  apiKey = process.env.JEV_API_KEY,
+  fetchImpl: typeof fetch = fetch,
+): Promise<DecisionResult> {
+  if (!apiKey) throw new Error("JEV_API_KEY is not configured on the server.");
+  const base = (process.env.JEV_API_BASE || "https://api.typesafe.ai").replace(
+    /\/$/,
+    "",
+  );
+  let response: Response;
+  try {
+    response = await fetchImpl(`${base}/v1/systemone`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(jevPayload(input)),
+      signal,
+    });
+  } catch (e) {
+    if (signal.aborted && (signal.reason as Error)?.name !== "TimeoutError")
+      throw e;
+    // Never include error details: they can echo request headers.
+    throw new JevRequestError(
+      "Jev request did not complete",
+      undefined,
+      (e as Error)?.name === "TimeoutError" || signal.aborted
+        ? "APIConnectionTimeoutError"
+        : "APIConnectionError",
+    );
+  }
+  if (!response.ok)
+    throw new JevRequestError(
+      `Jev request failed (${response.status})`,
+      response.status,
+    );
+  const body = (await response.json()) as {
+    answers?: Record<
+      string,
+      {
+        type?: string;
+        choice?: unknown;
+        confidence?: number;
+        probabilities?: Record<string, number>;
+      }
+    >;
+    usage?: { input_tokens?: number; output_tokens?: number };
+  };
+  const usage = {
+    inputTokens: body.usage?.input_tokens ?? null,
+    outputTokens: body.usage?.output_tokens ?? 0,
+  };
+  const answer = body.answers?.player_action;
+  if (!answer || answer.type !== "choice" || typeof answer.choice !== "string")
+    throw new ProviderFailure("Missing choice answer", usage);
+  return {
+    choice: answer.choice,
+    confidence:
+      typeof answer.confidence === "number" ? answer.confidence : null,
+    probabilities: answer.probabilities
+      ? Object.entries(answer.probabilities).map(([value, probability]) => ({
+          value,
+          probability,
+        }))
+      : null,
+    ...usage,
+  };
+}
+
 export function provider(
   kind: ProviderKind,
   apiKey = process.env.OPENAI_API_KEY,
@@ -77,16 +199,27 @@ export function provider(
         };
       },
     };
-  if (!apiKey)
+  // Decisions only serves gpt-6-luna, so a missing key is fatal up front.
+  if (kind === "decisions" && !apiKey)
     throw new Error("OPENAI_API_KEY is not configured on the server.");
-  const client = new OpenAI({ apiKey, maxRetries: 0, timeout: 30_000 });
+  let openai: OpenAI | null = null;
+  const client = () => {
+    if (!apiKey)
+      throw new Error("OPENAI_API_KEY is not configured on the server.");
+    return (openai ??= new OpenAI({ apiKey, maxRetries: 0, timeout: 30_000 }));
+  };
   return {
     kind,
     async decide(input, signal) {
+      // Models are routed per player, so one team can mix Jev and OpenAI models.
+      if (isJevModel(input.model)) return jevDecision(input, signal);
       if (kind === "decisions") {
-        const response = await client.decisions.create(decisionPayload(input), {
-          signal,
-        });
+        const response = await client().decisions.create(
+          decisionPayload(input),
+          {
+            signal,
+          },
+        );
         const answer = response.answers.find((a) => a.name === "player_action");
         const usage = {
           inputTokens: response.usage.input_tokens,
@@ -110,7 +243,7 @@ export function provider(
           ...usage,
         };
       }
-      const result = await client.responses.create(
+      const result = await client().responses.create(
         {
           model: input.model,
           store: false,

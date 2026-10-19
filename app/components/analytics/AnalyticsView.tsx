@@ -10,6 +10,7 @@ import {
   MODEL_OPTIONS,
   isUniform,
   modelLabel,
+  modelShort,
   parseModelMap,
   seriesVar,
 } from "../../lib/models";
@@ -521,6 +522,9 @@ export default function AnalyticsView() {
                 points={groups.map((g, i) => ({
                   ...rows[i],
                   label: `${rows[i].label} · ${g.formation}`,
+                  tag: isUniform(parseModelMap(g.modelMap))
+                    ? modelShort(parseModelMap(g.modelMap).GK)
+                    : "Mixed",
                   x: g.successfulMedianMs,
                   y:
                     scatterY === "gd"

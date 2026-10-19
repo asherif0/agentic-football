@@ -9,7 +9,35 @@ export const MODEL_OPTIONS = [
   { id: "gpt-6-luna", short: "Luna", note: "Fastest · lowest cost" },
   { id: "gpt-6-sol", short: "Sol", note: "Larger reasoning model" },
   { id: "gpt-6.1-sol", short: "Sol 6.1", note: "Newest · needs effort ≥ low" },
+  {
+    id: "jev-1.13.0",
+    short: "Jev",
+    note: "TypeSafe decision model · input tokens only",
+  },
 ] as const;
+
+/** TypeSafe Jev models are routed to the System One API instead of OpenAI. */
+export const isJev = (model: string) => /^jev-/.test(model);
+
+/** Jev returns a choice with probabilities; reasoning effort and output limits don't apply. */
+export const usesInference = (model: string) => !isJev(model);
+
+/** Which server-side API keys a set of models needs. */
+export function neededKeys(models: string[]) {
+  return { openai: models.some((m) => !isJev(m)), jev: models.some(isJev) };
+}
+
+/** Human name for the API(s) a squad's decisions go through. */
+export function apiLabel(models: Record<Role, string>, provider: string) {
+  if (provider === "mock") return "Mock";
+  if (provider === "decisions") return "OpenAI Decisions";
+  const need = neededKeys(ROLES.map((r) => models[r]));
+  return need.openai && need.jev
+    ? "OpenAI + TypeSafe"
+    : need.jev
+      ? "TypeSafe"
+      : "OpenAI Responses";
+}
 
 export const EFFORTS: InferenceSettings["reasoningEffort"][] = [
   "none",

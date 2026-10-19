@@ -724,6 +724,8 @@ export function Scatter({
   points: (ChartRow & {
     x: number | null;
     y: number | null;
+    /** Short direct label; carries identity when there are more series than safe colours. */
+    tag?: string;
     detail?: [string, string][];
   })[];
   xLabel: string;
@@ -737,7 +739,12 @@ export function Scatter({
     [active, setActive] = useState<string | null>(null);
   const valid = points.filter(
     (p) => p.x !== null && p.y !== null,
-  ) as (ChartRow & { x: number; y: number; detail?: [string, string][] })[];
+  ) as (ChartRow & {
+    x: number;
+    y: number;
+    tag?: string;
+    detail?: [string, string][];
+  })[];
   const svg = useDrawIn(width ? valid.map((r) => r.id).join() : "");
   const left = 48,
     right = 16,
@@ -844,6 +851,18 @@ export function Scatter({
                   color={p.color}
                 />
               </g>
+              {p.tag && (
+                <text
+                  className={s.value}
+                  x={x(p.x) + 10}
+                  y={y(p.y)}
+                  dominantBaseline="central"
+                  textAnchor={x(p.x) > width - 80 ? "end" : "start"}
+                  dx={x(p.x) > width - 80 ? -20 : 0}
+                >
+                  {p.tag}
+                </text>
+              )}
             </g>
           ))}
         </svg>

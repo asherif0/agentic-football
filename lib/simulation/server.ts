@@ -49,6 +49,10 @@ export function workerStatus() {
   return {
     connected: !!row && Date.now() - row.heartbeat < 5000,
     keyConfigured: !!process.env.OPENAI_API_KEY,
+    keys: {
+      openai: !!process.env.OPENAI_API_KEY,
+      jev: !!process.env.JEV_API_KEY,
+    },
   };
 }
 export function sameOrigin(request: Request) {

@@ -4,7 +4,7 @@ A local lab for building, simulating and evaluating five-a-side football teams w
 
 It ships with FIFA/UEFA and futsal source references, two formations (1–1–2 and 2–1–1), and baseline, research and adaptive prompt versions for every position. None of them are assumed to be validated: the point of the lab is to collect evidence.
 
-- **Squad**: pick a prompt version, model, reasoning effort and output limit per player. Mixed-model teams are supported.
+- **Squad**: pick a prompt version, model, reasoning effort and output limit per player. Models include OpenAI's GPT models and TypeSafe's Jev, and one team can mix them.
 - **Simulate**: a 2D match engine with an animated pitch replay and each player's decision at every moment.
 - **Analytics**: results, goal difference, decision latency, cost and per-position contributions across configurations.
 - **Prompts**: version history with evidence, diffs against parent versions, and a one-click export of all five prompts (Markdown, JSON or text).
@@ -15,7 +15,7 @@ It ships with FIFA/UEFA and futsal source references, two formations (1–1–2 
 
 - **Node.js 22 or newer** and npm. With nvm, run `nvm use` (the repo has an `.nvmrc`). `npm install` also adds a project-local Node 22 runtime that the npm scripts use.
 - **macOS, Linux or Windows (WSL).** The database uses `better-sqlite3`, which downloads a prebuilt binary for most platforms. If none matches yours it compiles from source, which needs Python 3 and a C++ toolchain (Xcode Command Line Tools on macOS, `build-essential` on Debian/Ubuntu).
-- **Optional: an OpenAI API key.** Only needed to run new matches with real models. Browsing, replays, analytics, prompt editing and export work without one.
+- **Optional: model API keys.** An OpenAI key runs the GPT models; a [TypeSafe](https://docs.typesafe.ai) key runs **Jev**, TypeSafe's decision model. You only need keys for the models you use. Browsing, replays, analytics, prompt editing and export work without any.
 
 ### Install and run
 
@@ -24,7 +24,7 @@ git clone https://github.com/asherif0/agentic-football.git
 cd agentic-football
 nvm use              # optional, selects Node 22
 npm install
-cp .env.example .env.local   # optional: add OPENAI_API_KEY=... to run real matches
+cp .env.example .env.local   # optional: add OPENAI_API_KEY / JEV_API_KEY to run real matches
 npm run dev
 ```
 
@@ -35,7 +35,7 @@ On first start the app creates `data/lab.sqlite` and seeds it with the formation
 ### Your first match
 
 - **Without an API key:** open **Simulate → New match**, set the provider to **Mock**, and start. Mock matches use scripted controllers that do not read your prompts; they are labelled *test fixtures* and appear in Analytics under **Test fixtures**. Use them to try the replay and the workflow.
-- **With an API key:** add `OPENAI_API_KEY` to `.env.local` and restart. Choose a prompt and model for each player on **Squad**, then **Simulate → New match**. Every match makes real, billed model calls. The setup drawer shows the planned number of calls and an estimated cost, and request and token ceilings stop a match cleanly.
+- **With an API key:** add `OPENAI_API_KEY` and/or `JEV_API_KEY` to `.env.local` and restart. Choose a prompt and model for each player on **Squad**, then **Simulate → New match**. Every match makes real, billed model calls. The setup drawer shows the planned number of calls and an estimated cost, and request and token ceilings stop a match cleanly.
 - **Take the prompts with you:** **Prompts → Export squad** downloads all five prompts with their model settings and evidence.
 
 Matches run in a background worker that the app starts when needed, so closing the browser tab does not stop them.
@@ -67,7 +67,9 @@ Set these in `.env.local` or the server environment.
 
 | Variable | Purpose |
 |---|---|
-| `OPENAI_API_KEY` | Enables real matches, benchmarks, campaigns and AI prompt proposals. Never put it in a prompt. |
+| `OPENAI_API_KEY` | Enables the GPT models for matches and benchmarks, plus campaigns and AI prompt proposals. Never put it in a prompt. |
+| `JEV_API_KEY` | Enables TypeSafe's Jev models (`jev-1.13.0`, `jev-1.14.0`) through `https://api.typesafe.ai/v1/systemone`. |
+| `JEV_API_BASE` | Optional override for the TypeSafe API base URL. |
 | `PROMPT_REVISION_MODEL` | Model used to draft prompt revisions (default `gpt-6-luna`). |
 | `FOOTBALL_DATA_DIR` | Directory for the SQLite database and attachments (default `data/`). Useful for a separate test workspace. |
 | `NEXT_DIST_DIR` | Build output directory (default `.next`), for running a second build next to a live one. |

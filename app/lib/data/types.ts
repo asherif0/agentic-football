@@ -40,6 +40,7 @@ export type RunIndex = {
   decisions: any[];
   connected: boolean;
   keyConfigured: boolean;
+  keys?: { openai: boolean; jev: boolean };
 };
 
 export type Round = {

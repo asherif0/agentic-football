@@ -9,6 +9,8 @@ import { int, signed, usd } from "../../lib/format";
 import {
   EFFORTS,
   MODEL_OPTIONS,
+  apiLabel,
+  usesInference,
   inferenceIssues,
   isUniform,
   modelLabel,
@@ -239,11 +241,7 @@ export default function SquadView() {
             <div>
               <span className="eyebrow">Runs on</span>
               <span className={s.summaryValue}>
-                {provider === "decisions"
-                  ? "Decisions"
-                  : provider === "responses"
-                    ? "Responses"
-                    : "Mock"}
+                {apiLabel(p.models, provider)}
               </span>
               <span className="muted" style={{ fontSize: 12 }}>
                 {provider === "responses"
@@ -547,43 +545,49 @@ function PlayerCard({
       </div>
       <div className={s.row}>
         <span className={s.rowLabel}>Reasoning</span>
-        <div className={s.inline}>
-          <select
-            aria-label={`${role} reasoning effort`}
-            value={inference.reasoningEffort}
-            onChange={(e) =>
-              onInference({
-                reasoningEffort: e.target
-                  .value as InferenceSettings["reasoningEffort"],
-              })
-            }
-          >
-            {EFFORTS.map((x) => (
-              <option
-                key={x}
-                value={x}
-                disabled={model === "gpt-6.1-sol" && x === "none"}
-              >
-                {x}
-              </option>
-            ))}
-          </select>
-          <input
-            aria-label={`${role} max output tokens`}
-            type="number"
-            min={256}
-            max={4096}
-            step={256}
-            value={inference.maxOutputTokens}
-            onChange={(e) =>
-              onInference({ maxOutputTokens: Number(e.target.value) })
-            }
-            style={{ width: 96 }}
-          />
-          <span className="muted" style={{ fontSize: 12 }}>
-            max output tokens
+        {!usesInference(model) ? (
+          <span className="muted" style={{ fontSize: 12.5 }}>
+            Not used: Jev returns a choice with probabilities
           </span>
-        </div>
+        ) : (
+          <div className={s.inline}>
+            <select
+              aria-label={`${role} reasoning effort`}
+              value={inference.reasoningEffort}
+              onChange={(e) =>
+                onInference({
+                  reasoningEffort: e.target
+                    .value as InferenceSettings["reasoningEffort"],
+                })
+              }
+            >
+              {EFFORTS.map((x) => (
+                <option
+                  key={x}
+                  value={x}
+                  disabled={model === "gpt-6.1-sol" && x === "none"}
+                >
+                  {x}
+                </option>
+              ))}
+            </select>
+            <input
+              aria-label={`${role} max output tokens`}
+              type="number"
+              min={256}
+              max={4096}
+              step={256}
+              value={inference.maxOutputTokens}
+              onChange={(e) =>
+                onInference({ maxOutputTokens: Number(e.target.value) })
+              }
+              style={{ width: 96 }}
+            />
+            <span className="muted" style={{ fontSize: 12 }}>
+              max output tokens
+            </span>
+          </div>
+        )}
       </div>
     </section>
   );

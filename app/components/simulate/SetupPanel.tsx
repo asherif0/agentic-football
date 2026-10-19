@@ -4,7 +4,12 @@ import { ROLES, type Workspace } from "../../../lib/domain";
 import type { RunIndex } from "../../lib/data/types";
 import { postJSON } from "../../lib/data/cache";
 import { int, usd } from "../../lib/format";
-import { inferenceIssues, modelLabel, providerFor } from "../../lib/models";
+import {
+  inferenceIssues,
+  modelLabel,
+  neededKeys,
+  providerFor,
+} from "../../lib/models";
 import { estimateMatchCost } from "../../lib/squad";
 import { toast } from "../../lib/toast";
 import ModelAssignments from "../ModelAssignments";
@@ -66,9 +71,23 @@ export function SetupPanel({
       : estimateMatchCost(p.models, p.duration, p.interval).total;
   const issues =
     provider === "responses" ? inferenceIssues(p.models, p.inference) : [];
+  const need = neededKeys([
+    ...ROLES.map((r) => p.models[r]),
+    ...(p.opponent ? ROLES.map((r) => p.opponentModels[r]) : []),
+  ]);
+  const keys = index.keys ?? { openai: index.keyConfigured, jev: false };
+  const missingKeys =
+    provider === "mock"
+      ? []
+      : [
+          ...((need.openai || provider === "decisions") && !keys.openai
+            ? ["OPENAI_API_KEY"]
+            : []),
+          ...(need.jev && !keys.jev ? ["JEV_API_KEY"] : []),
+        ];
   const blocked =
     !scenario ||
-    (provider !== "mock" && !index.keyConfigured) ||
+    missingKeys.length > 0 ||
     issues.length > 0 ||
     (series && !challenger);
 
@@ -203,7 +222,7 @@ export function SetupPanel({
                   Decisions · gpt-6-luna only
                 </option>
                 <option value="responses">
-                  Responses · any model per player
+                  Per-player models · OpenAI / TypeSafe
                 </option>
                 <option value="mock">Mock · fixture, no API calls</option>
               </select>
@@ -419,10 +438,12 @@ export function SetupPanel({
             stops the match cleanly.
           </span>
         </div>
-        {provider !== "mock" && !index.keyConfigured && (
+        {missingKeys.length > 0 && (
           <Notice tone="warn" icon="alert">
-            No OPENAI_API_KEY is configured on the server, so only Mock matches
-            can start.
+            {missingKeys.join(" and ")} {missingKeys.length > 1 ? "are" : "is"}{" "}
+            not configured on the server. Add{" "}
+            {missingKeys.length > 1 ? "them" : "it"} to .env.local and restart,
+            or start a Mock match.
           </Notice>
         )}
         {issues.map((i) => (
