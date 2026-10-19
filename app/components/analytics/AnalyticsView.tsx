@@ -458,7 +458,7 @@ export default function AnalyticsView() {
                   g.decisions,
                 ]),
               }}
-              foot="Latency affects how stale a player's view of the match is when its action lands."
+              foot="Game time pauses while agents decide, so latency changes how long a match takes, not its result. Failed requests do change results: the player holds."
             >
               <RangePlot
                 format={ms}
