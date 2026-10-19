@@ -1,25 +1,39 @@
 import OpenAI from "openai";
 import { store } from "../../../lib/store";
+import { sameOrigin } from "../../../lib/simulation/server";
 import {
   DEFAULT_PROPOSAL_MODEL,
   generateProposal,
 } from "../../../lib/prompt-proposals";
+import { proposalModelProblem, proposalModels } from "../../lib/models";
+
+const keys = () => ({
+  openai: !!process.env.OPENAI_API_KEY,
+  jev: !!process.env.JEV_API_KEY,
+});
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export async function GET() {
+  const model = process.env.PROMPT_REVISION_MODEL || DEFAULT_PROPOSAL_MODEL;
   return Response.json({
     configured: !!process.env.OPENAI_API_KEY,
-    model: process.env.PROMPT_REVISION_MODEL || DEFAULT_PROPOSAL_MODEL,
+    model,
+    // Writing models from the lab's registry, with availability per configured key.
+    models: proposalModels(keys(), process.env.PROMPT_REVISION_MODEL),
   });
 }
 let generating = false;
 export async function POST(req: Request) {
-  const origin = req.headers.get("origin");
-  if (origin && new URL(origin).host !== new URL(req.url).host)
+  // Same check as the other write routes: compare Origin with the Host header,
+  // since req.url can name "localhost" when the browser used 127.0.0.1.
+  try {
+    sameOrigin(req);
+  } catch {
     return Response.json(
       { error: "Cross-origin prompt generation is not allowed" },
       { status: 403 },
     );
+  }
   if (generating)
     return Response.json(
       { error: "Another proposal is generating. Please wait." },
@@ -35,6 +49,12 @@ export async function POST(req: Request) {
       body.model || process.env.PROMPT_REVISION_MODEL || DEFAULT_PROPOSAL_MODEL;
     if (typeof model !== "string" || !/^[a-zA-Z0-9._-]{1,100}$/.test(model))
       throw new Error("Invalid model name");
+    const problem = proposalModelProblem(
+      model,
+      keys(),
+      process.env.PROMPT_REVISION_MODEL,
+    );
+    if (problem) throw new Error(problem);
     if (!process.env.OPENAI_API_KEY)
       throw new Error("OPENAI_API_KEY is not configured on the server.");
     const client = new OpenAI({

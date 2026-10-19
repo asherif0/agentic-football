@@ -35,6 +35,7 @@ import {
 } from "../ui/primitives";
 import { Segmented } from "../ui/Segmented";
 import { ExportDialog } from "./ExportDialog";
+import { ReviseDialog } from "./ReviseDialog";
 import s from "./prompts.module.css";
 
 const byDate = (a: RecordData, b: RecordData) =>
@@ -51,6 +52,7 @@ export default function PromptsView() {
     { data: index } = useRunIndex(),
     [view, setView] = useState<"text" | "changes">("text"),
     [exporting, setExporting] = useState(params.get("export") === "1"),
+    [revising, setRevising] = useState(!!params.get("revise")),
     [draft, setDraft] = useState<any>(null);
   const w = ws?.records;
   const evidence = useMemo(
@@ -313,7 +315,7 @@ export default function PromptsView() {
                     size="sm"
                     variant="ghost"
                     icon="sparkle"
-                    href={`/library/collections?parent=${selected.id}`}
+                    onClick={() => setRevising(true)}
                   >
                     Revise from annotations
                   </Button>
@@ -365,6 +367,22 @@ export default function PromptsView() {
 
       <NextStep href="/squad" />
 
+      {selected && (
+        <ReviseDialog
+          open={revising}
+          onClose={() => {
+            setRevising(false);
+            if (params.get("revise")) go({ prompt: selected.id });
+          }}
+          workspace={w}
+          prompt={selected}
+          requestedCollection={params.get("revise")}
+          onSaved={(id) => {
+            setRevising(false);
+            go({ prompt: id });
+          }}
+        />
+      )}
       <ExportDialog
         open={exporting}
         onClose={() => setExporting(false)}

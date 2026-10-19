@@ -370,6 +370,10 @@
 .dialogSm {
   width: min(460px, calc(100vw - 32px));
 }
+.dialogWide {
+  width: min(1080px, calc(100vw - 32px));
+  max-height: min(92dvh, 1000px);
+}
 .panelHead {
   display: flex;
   align-items: flex-start;

@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   RecordData,
@@ -6,28 +7,17 @@ import {
   ROLES,
   Workspace,
   latestAnnotations,
-  promptDiff,
 } from "../../lib/domain";
 import { annotationContext } from "../../lib/prompt-proposals";
 import DataTable from "./DataTable";
-type Proposal = {
-  text: string;
-  rationale: string;
-  changes: { instruction: string; annotationIds: string[] }[];
-  uncertainties: string[];
-  evaluationPlan: string;
-  provenance: any;
-};
 export default function AnnotationCollections({
   workspace: w,
   requestedParentId,
   refresh,
-  onSaved,
 }: {
   workspace: Workspace;
   requestedParentId: string | null;
   refresh: () => Promise<void>;
-  onSaved: (id: string) => void;
 }) {
   const requested = w.prompts.find((p) => p.id === requestedParentId);
   const [formationId, setFormation] = useState(
@@ -40,10 +30,6 @@ export default function AnnotationCollections({
   const [label, setLabel] = useState("");
   const [savedId, setSavedId] = useState("");
   const [search, setSearch] = useState("");
-  const [proposal, setProposal] = useState<Proposal | null>(null);
-  const [revisionLabel, setRevisionLabel] = useState("");
-  const [model, setModel] = useState("gpt-6-luna");
-  const [configured, setConfigured] = useState(false);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [ready, setReady] = useState(false);
@@ -69,8 +55,6 @@ export default function AnnotationCollections({
           setSavedId(
             w.collections.some((c) => c.id === s.savedId) ? s.savedId : "",
           );
-          setProposal(s.proposal);
-          setRevisionLabel(s.revisionLabel);
         }
       }
     } catch {}
@@ -89,40 +73,10 @@ export default function AnnotationCollections({
           selected,
           label,
           savedId,
-          proposal,
-          revisionLabel,
         }),
       );
     } catch {}
-  }, [
-    ready,
-    formationId,
-    role,
-    parentId,
-    origin,
-    selected,
-    label,
-    savedId,
-    proposal,
-    revisionLabel,
-  ]);
-  useEffect(() => {
-    fetch("/api/prompt-proposals")
-      .then((r) => r.json())
-      .then((x) => {
-        setConfigured(x.configured);
-        setModel(x.model);
-      })
-      .catch(() => setError("Could not check API configuration."));
-  }, []);
-  useEffect(() => {
-    if (!proposal) return;
-    const warn = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-    };
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [proposal]);
+  }, [ready, formationId, role, parentId, origin, selected, label, savedId]);
   const prompts = w.prompts
     .filter((p) => p.formationId === formationId && p.role === role)
     .slice()
@@ -149,7 +103,6 @@ export default function AnnotationCollections({
     setSavedId("");
     setSelected([]);
     setLabel("");
-    setProposal(null);
     setError("");
   }
   function openCollection(id: string) {
@@ -165,7 +118,6 @@ export default function AnnotationCollections({
     setSelected(c.annotationIds);
     setLabel(c.label);
     setSavedId(c.id);
-    setProposal(null);
     setError("");
     setSearch("");
   }
@@ -202,69 +154,16 @@ export default function AnnotationCollections({
       setBusy("");
     }
   }
-  async function generate() {
-    setBusy("Reviewing collected evidence…");
-    setError("");
-    try {
-      const p = await post("/api/prompt-proposals", {
-        collectionId: savedId,
-        model,
-      });
-      setProposal(p);
-      setRevisionLabel(`${parent?.label || role} · ${label}`);
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy("");
-    }
-  }
-  async function saveRevision() {
-    if (!proposal || !parent || !saved) return;
-    setBusy("Saving reviewed revision…");
-    setError("");
-    try {
-      const p = await post("/api/workspace", {
-        kind: "prompts",
-        record: {
-          label: revisionLabel,
-          text: proposal.text,
-          rationale: proposal.rationale,
-          parentId: parent.id,
-          formationId: parent.formationId,
-          role: parent.role,
-          hypothesisIds: parent.hypothesisIds,
-          status: "draft",
-          collectionId: saved.id,
-          aiProposal: {
-            ...proposal.provenance,
-            reviewedAt: new Date().toISOString(),
-          },
-        },
-      });
-      await refresh();
-      setProposal(null);
-      try {
-        sessionStorage.removeItem("football-collection-review");
-      } catch {}
-      onSaved(p.id);
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy("");
-    }
-  }
-  const diff =
-    proposal && parent ? promptDiff(parent.text, proposal.text) : null;
   return (
     <div className="collection-workspace">
       <section className="card">
         <div className="section-heading">
           <div>
-            <span className="eyebrow">EVIDENCE → PROPOSAL → REVIEW</span>
+            <span className="eyebrow">EVIDENCE</span>
             <h2>Annotation collections</h2>
             <p className="muted">
-              Bring plays from multiple matches together to revise one player’s
-              instructions.
+              Group critical events from several matches for one player.
+              Drafting the revision happens on the Prompts page.
             </p>
           </div>
           <label>
@@ -381,7 +280,6 @@ export default function AnnotationCollections({
               disabled={!!busy}
               onClick={() => {
                 setSavedId("");
-                setProposal(null);
                 setLabel(label + " revision");
               }}
             >
@@ -493,154 +391,23 @@ export default function AnnotationCollections({
       </section>
       {saved && (
         <section className="card">
-          <h2>Propose a prompt revision</h2>
-          <div className="toolbar">
-            <span className="badge">
-              {configured ? "API key configured" : "API key missing"}
-            </span>
-            <label>
-              OpenAI model
-              <input
-                value={model}
-                disabled={!!busy || !!proposal}
-                onChange={(e) => setModel(e.target.value)}
-              />
-            </label>
-          </div>
+          <h2>Collection saved</h2>
           <p className="muted">
-            One Responses API request per click · 50,000 reserved input-token
-            ceiling · 4,096 output-token limit · 60-second timeout · no
-            automatic retries. Only annotation text, match context and prompts
-            are sent; recording files are not analyzed.
+            Draft a revision of {parent?.label || role} from these{" "}
+            {saved.annotationIds.length} annotations on the Prompts page. You
+            choose the model there and review the proposal before saving it.
           </p>
-          {!proposal && (
-            <button disabled={!!busy || !configured} onClick={generate}>
-              Generate AI proposal
+          <div className="toolbar">
+            <Link
+              className="file-button"
+              href={`/prompts?prompt=${saved.parentPromptId}&revise=${saved.id}`}
+            >
+              Generate a revision on Prompts →
+            </Link>
+            <button className="secondary" onClick={reset}>
+              Start a new collection
             </button>
-          )}
-          {busy && (
-            <p role="status" aria-live="polite">
-              {busy}
-            </p>
-          )}
-          {proposal && (
-            <div className="proposal-review">
-              <div className="section-heading">
-                <h3>Review proposed changes</h3>
-                <span className="badge">Untested draft</span>
-              </div>
-              <ul>
-                {proposal.changes.map((c, i) => (
-                  <li key={i}>
-                    {c.instruction}
-                    <small className="evidence-citations">
-                      {c.annotationIds.map((id) => {
-                        const a = w.annotations.find((a) => a.id === id);
-                        return (
-                          <span key={id}>
-                            {" "}
-                            {a?.timestamp} ·{" "}
-                            {annotationContext(a!, w).match?.label} ·{" "}
-                            {id.slice(0, 8)}
-                          </span>
-                        );
-                      })}
-                    </small>
-                  </li>
-                ))}
-              </ul>
-              {proposal.uncertainties.length > 0 && (
-                <div className="notice">
-                  <strong>Uncertainties & conflicting evidence</strong>
-                  <ul>
-                    {proposal.uncertainties.map((s, i) => (
-                      <li key={i}>{s}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              <p>
-                <strong>Evaluation plan:</strong> {proposal.evaluationPlan}
-              </p>
-              <label>
-                Revision label
-                <input
-                  value={revisionLabel}
-                  onChange={(e) => setRevisionLabel(e.target.value)}
-                />
-              </label>
-              <div className="proposal-columns">
-                <div>
-                  <h3>Parent prompt</h3>
-                  <pre className="prompt-text">{parent?.text}</pre>
-                </div>
-                <label>
-                  Proposed prompt — editable
-                  <textarea
-                    rows={18}
-                    maxLength={6000}
-                    value={proposal.text}
-                    onChange={(e) =>
-                      setProposal({ ...proposal, text: e.target.value })
-                    }
-                  />
-                  <small>
-                    {proposal.text.length.toLocaleString()} / 6,000 characters
-                  </small>
-                </label>
-              </div>
-              <label>
-                Revision rationale
-                <textarea
-                  rows={3}
-                  value={proposal.rationale}
-                  onChange={(e) =>
-                    setProposal({ ...proposal, rationale: e.target.value })
-                  }
-                />
-              </label>
-              <details>
-                <summary>Changes from parent</summary>
-                <h4>Removed lines</h4>
-                <pre>{diff?.removed.join("\n") || "None"}</pre>
-                <h4>Added lines</h4>
-                <pre>{diff?.added.join("\n") || "None"}</pre>
-              </details>
-              <details>
-                <summary>Generation details</summary>
-                <p>
-                  {proposal.provenance.model} · {proposal.provenance.durationMs}{" "}
-                  ms · {proposal.provenance.inputTokens ?? "Unknown"} input /{" "}
-                  {proposal.provenance.outputTokens ?? "Unknown"} output tokens
-                </p>
-              </details>
-              <p className="muted">
-                Saving records your review and preserves the original AI
-                proposal. Team versions and champions are unchanged. Create a
-                new team version to test this draft.
-              </p>
-              <div className="toolbar">
-                <button
-                  disabled={
-                    !!busy ||
-                    !revisionLabel.trim() ||
-                    !proposal.text.trim() ||
-                    !proposal.rationale.trim()
-                  }
-                  onClick={saveRevision}
-                >
-                  Save reviewed prompt revision
-                </button>
-                <button
-                  className="secondary"
-                  disabled={!!busy}
-                  onClick={() => setProposal(null)}
-                >
-                  Discard proposal
-                </button>
-              </div>
-            </div>
-          )}
+          </div>
         </section>
       )}
     </div>

@@ -7,7 +7,6 @@ import AnnotationCollections from "../AnnotationCollections";
 import Campaigns from "../Campaigns";
 import { Icon } from "../ui/Icon";
 import { Skeleton } from "../ui/primitives";
-import { toast } from "../../lib/toast";
 import Benchmarks from "./Benchmarks";
 import ComparePanel from "./ComparePanel";
 import RecordSection from "./RecordSection";
@@ -35,13 +34,6 @@ export default function LibrarySection({ section }: { section: Section }) {
           workspace={data.records}
           requestedParentId={params.get("parent")}
           refresh={refresh}
-          onSaved={(id) => {
-            toast(
-              "Reviewed prompt revision saved as an untested draft.",
-              "success",
-            );
-            router.push(`/prompts?prompt=${id}`);
-          }}
         />
       </div>
     );

@@ -227,3 +227,44 @@ test("generation failures never retry, save prompts or switch models", async () 
   }
   s.db.close();
 });
+
+test("the proposal model list comes from the registry and only offers writers", async () => {
+  const { proposalModels, proposalModelProblem } =
+    await import("../app/lib/models");
+  const all = proposalModels({ openai: true, jev: true });
+  assert.deepEqual(
+    all.map((m) => m.id),
+    ["gpt-6-luna", "gpt-6-sol", "gpt-6.1-sol"],
+  );
+  assert.ok(all.every((m) => m.available));
+  const noKey = proposalModels({ openai: false, jev: true });
+  assert.ok(
+    noKey.every((m) => !m.available && m.reason === "needs OPENAI_API_KEY"),
+  );
+  const custom = proposalModels({ openai: true, jev: false }, "gpt-7-test");
+  assert.equal(custom.at(-1)?.id, "gpt-7-test");
+  assert.match(
+    proposalModelProblem("jev-1.13.0", { openai: true, jev: true })!,
+    /can't write prompts/,
+  );
+  assert.match(
+    proposalModelProblem("made-up", { openai: true, jev: true })!,
+    /isn't in the lab's model list/,
+  );
+  assert.match(
+    proposalModelProblem("gpt-6-sol", { openai: false, jev: true })!,
+    /needs OPENAI_API_KEY/,
+  );
+  assert.equal(
+    proposalModelProblem("gpt-6-sol", { openai: true, jev: false }),
+    null,
+  );
+  assert.equal(
+    proposalModelProblem(
+      "gpt-7-test",
+      { openai: true, jev: false },
+      "gpt-7-test",
+    ),
+    null,
+  );
+});

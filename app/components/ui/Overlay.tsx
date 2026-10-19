@@ -125,6 +125,7 @@ export function Dialog({
   children,
   footer,
   small,
+  wide,
 }: {
   open: boolean;
   onClose: () => void;
@@ -133,6 +134,8 @@ export function Dialog({
   children: ReactNode;
   footer?: ReactNode;
   small?: boolean;
+  /** Fits two prompts side by side; stacks on phones. */
+  wide?: boolean;
 }) {
   const panel = useOverlay(open, onClose);
   useEffect(() => {
@@ -152,7 +155,7 @@ export function Dialog({
         role="dialog"
         aria-modal="true"
         aria-label={typeof title === "string" ? title : undefined}
-        className={cx(s.dialog, small && s.dialogSm)}
+        className={cx(s.dialog, small && s.dialogSm, wide && s.dialogWide)}
       >
         <header className={s.panelHead}>
           <div>
