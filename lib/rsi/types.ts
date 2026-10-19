@@ -9,7 +9,7 @@ import type {
   Side,
 } from "../simulation/types";
 
-export const RSI_VERSION = "rsi-v1";
+export const RSI_VERSION = "rsi-v2";
 
 export type RsiStatus =
   "running" | "paused" | "completed" | "limited" | "stopped" | "failed";
@@ -49,10 +49,11 @@ export type RoundOutcome =
 export type RsiRound = {
   n: number;
   stage: "rewriting" | "evaluating" | "done";
-  role: Role | null;
-  text: string | null;
+  /** Positions this round revised, and their full rewritten prompts. */
+  roles: Role[];
+  prompts: Partial<Record<Role, string>>;
   rationale: string;
-  changes: string[];
+  changes: { role: Role; change: string }[];
   seriesIds: string[];
   runIds: string[];
   results: MatchResult[];
@@ -89,8 +90,9 @@ export type RsiConfig = {
   teamLabel: string;
   formationId: string;
   formationName: string;
-  role: Role | "auto";
   scenarioId: string;
+  /** One model plays every position; it also writes unless it can't (Jev). */
+  model: string;
   models: Record<Role, string>;
   inference?: Record<Role, InferenceSettings>;
   provider: ProviderKind;
@@ -107,7 +109,8 @@ export type RsiConfig = {
   costLimitUsd: number;
   maxRounds: number;
   patience: number;
-  collectionId: string | null;
+  /** Newest critical-events collection per position, sent to the writer as guidance. */
+  collectionIds: string[];
   /** Frozen match settings; each match copies it and sets seed, side and prompts. */
   baseline: RunConfig;
 };

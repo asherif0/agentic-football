@@ -15,22 +15,14 @@ import { getJSON, postJSON, useResource } from "../../lib/data/cache";
 import { useWorkspace } from "../../lib/data/hooks";
 import { diffLines } from "../../lib/diff";
 import { date, dateTime, plural } from "../../lib/format";
-import { MODEL_OPTIONS, type ProposalModel } from "../../lib/models";
+import { MODEL_OPTIONS, modelShort, writerFor } from "../../lib/models";
 import { gsap, reducedMotion, useGSAP } from "../../lib/motion";
 import { toast } from "../../lib/toast";
 import { usePreparation } from "../Preparation";
 import { PageHeader } from "../shell/PageHeader";
 import { CopyButton } from "../ui/CopyButton";
 import { Dialog } from "../ui/Overlay";
-import {
-  Badge,
-  Button,
-  Card,
-  EmptyState,
-  Field,
-  Notice,
-  Skeleton,
-} from "../ui/primitives";
+import { Badge, Button, Card, Field, Notice, Skeleton } from "../ui/primitives";
 import { Segmented } from "../ui/Segmented";
 import { ScoreSteps, type StepPoint } from "./ScoreSteps";
 import s from "./rsi.module.css";
@@ -45,12 +37,7 @@ type ListSession = Omit<RsiSession, "start" | "best"> & {
   spend: Spend;
   best: Omit<RsiSession["best"], "prompts">;
 };
-type ListData = {
-  sessions: ListSession[];
-  writers: ProposalModel[];
-  defaultWriter: string;
-  connected: boolean;
-};
+type ListData = { sessions: ListSession[]; connected: boolean };
 type Detail = {
   session: RsiSession & { spend: Spend };
   nextRoundUsd: number;
@@ -77,13 +64,16 @@ const pts = (sc: RsiScore | null | undefined) =>
 /** Rounds that used an attempt; a writer call that never connected doesn't count. */
 const used = (rounds: RsiRound[]) =>
   rounds.filter(
-    (r) => !(r.outcome === "failed" && !r.text && !r.rewrite?.responseId),
+    (r) =>
+      !(r.outcome === "failed" && !r.roles.length && !r.rewrite?.responseId),
   ).length;
 const sign = (n: number, d = 2) => `${n > 0 ? "+" : ""}${n.toFixed(d)}`;
 const scoreLine = (sc: RsiScore | null | undefined) =>
   sc
     ? `${sc.points.toFixed(2)} pts · ${sign(sc.goalDiff)} goal diff · ${sign(sc.onTargetDiff)} on target · ${sc.turnovers.toFixed(2)} dangerous turnovers`
     : "Not scored";
+const short = (model: string) =>
+  MODEL_OPTIONS.find((m) => m.id === model)?.short ?? modelShort(model);
 
 /** Which part of the comparison made the best version win. */
 function decidedBy(a: RsiScore | null, b: RsiScore | null) {
@@ -95,10 +85,8 @@ function decidedBy(a: RsiScore | null, b: RsiScore | null) {
   return "with fewer dangerous turnovers";
 }
 
-const STATUS: Record<
-  string,
-  { label: string; tone: "lime" | "warn" | "good" | "neutral" | "bad" }
-> = {
+type Tone = "lime" | "warn" | "good" | "neutral" | "bad";
+const STATUS: Record<string, { label: string; tone: Tone }> = {
   running: { label: "Running", tone: "lime" },
   paused: { label: "Paused", tone: "warn" },
   completed: { label: "Finished", tone: "good" },
@@ -106,14 +94,11 @@ const STATUS: Record<
   stopped: { label: "Stopped", tone: "neutral" },
   failed: { label: "Failed", tone: "bad" },
 };
-const OUTCOME: Record<
-  string,
-  { label: string; tone: "lime" | "warn" | "good" | "neutral" | "bad" }
-> = {
+const OUTCOME: Record<string, { label: string; tone: Tone }> = {
   improved: { label: "New best", tone: "lime" },
   "no-better": { label: "No better", tone: "neutral" },
   "rejected-early": { label: "Rejected early", tone: "neutral" },
-  "no-change": { label: "Already tried", tone: "neutral" },
+  "no-change": { label: "Nothing new", tone: "neutral" },
   failed: { label: "Failed", tone: "bad" },
   limited: { label: "Stopped at limit", tone: "warn" },
   stopped: { label: "Stopped", tone: "neutral" },
@@ -122,16 +107,14 @@ const OUTCOME: Record<
 type Setup = {
   formationId: string;
   teamId: string;
-  role: Role | "auto";
   model: string;
-  writer: string;
   bot: "balanced" | "press" | "counter";
   duration: number;
   matches: number;
   limit: string;
   maxRounds: string;
   patience: string;
-  collectionId: string;
+  guidance: boolean;
 };
 
 export default function RsiView() {
@@ -165,7 +148,7 @@ export default function RsiView() {
   /* ---------- setup ---------- */
   const [setup, setSetup] = useState<Setup | null>(null);
   useEffect(() => {
-    if (setup || !w || !ready || !list.data) return;
+    if (setup || !w || !ready) return;
     const team =
       w.teams.find((t) => t.id === prep.team) ?? w.teams.at(-1) ?? null;
     const models = Object.values(prep.models ?? {}) as string[];
@@ -173,21 +156,19 @@ export default function RsiView() {
     setSetup({
       formationId: team?.formationId ?? "",
       teamId: team?.id ?? "",
-      role: "MID",
       model:
         uniform && MODEL_OPTIONS.some((m) => m.id === models[0])
           ? models[0]
           : "gpt-6-luna",
-      writer: list.data.defaultWriter,
       bot: "balanced",
       duration: 20,
       matches: 4,
       limit: "1.00",
       maxRounds: "8",
       patience: "3",
-      collectionId: "",
+      guidance: true,
     });
-  }, [setup, w, ready, list.data, prep]);
+  }, [setup, w, ready, prep]);
   const patch = (p: Partial<Setup>) =>
     setSetup((old) => (old ? { ...old, ...p } : old));
 
@@ -210,13 +191,14 @@ export default function RsiView() {
         : [],
     [w, setup],
   );
-  const collections = useMemo(
+  // Positions with at least one critical-events collection in this formation.
+  const covered = useMemo(
     () =>
       w && setup
-        ? w.collections.filter(
-            (c) =>
-              c.formationId === setup.formationId &&
-              (setup.role === "auto" || c.role === setup.role),
+        ? ROLES.filter((r) =>
+            w.collections.some(
+              (c) => c.formationId === setup.formationId && c.role === r,
+            ),
           )
         : [],
     [w, setup],
@@ -228,22 +210,18 @@ export default function RsiView() {
       teamId: setup.teamId,
       scenarioId:
         prep.team === setup.teamId ? prep.scenario || undefined : undefined,
-      role: setup.role,
       provider: prep.provider === "mock" ? undefined : prep.provider,
-      models: Object.fromEntries(ROLES.map((r) => [r, setup.model])),
+      model: setup.model,
       inference: prep.inference,
-      writerModel: setup.writer,
       bot: setup.bot,
       duration: setup.duration,
       matchesPerRound: setup.matches,
       costLimitUsd: Number(setup.limit),
       maxRounds: Number(setup.maxRounds),
       patience: Number(setup.patience),
-      collectionId: collections.some((c) => c.id === setup.collectionId)
-        ? setup.collectionId
-        : null,
+      guidance: setup.guidance && covered.length > 0,
     };
-  }, [setup, prep, collections]);
+  }, [setup, prep, covered]);
 
   const [preview, setPreview] = useState<Preview | null>(null),
     [previewError, setPreviewError] = useState<string | null>(null);
@@ -317,14 +295,14 @@ export default function RsiView() {
     !previewError &&
     !active &&
     !!setup.teamId;
-  const writers = list.data?.writers ?? [];
+  const writer = setup ? writerFor(setup.model) : null;
 
   return (
     <>
       <PageHeader
         eyebrow="Recursive self-improvement"
-        title="Let the lab tune a prompt"
-        description="Pick a player and a starting version. RSI plays a few matches, has a writer model rewrite the prompt from what happened, replays the same matches and keeps whichever version scores best. It stops at your spending limit, and only the winner is saved."
+        title="Let the lab tune your squad"
+        description="Pick a starting version and a model. RSI plays a few matches, rewrites the players' prompts from what happened, replays the same matches and keeps whichever version scores best. It stops at your spending limit, and only the winner is saved."
       />
       <div className={s.layout}>
         <Card
@@ -364,11 +342,7 @@ export default function RsiView() {
                       const team = w.teams
                         .filter((t) => t.formationId === v)
                         .at(-1);
-                      patch({
-                        formationId: v,
-                        teamId: team?.id ?? "",
-                        collectionId: "",
-                      });
+                      patch({ formationId: v, teamId: team?.id ?? "" });
                     }}
                   />
                 </Field>
@@ -386,64 +360,25 @@ export default function RsiView() {
                   </select>
                 </Field>
                 <Field
-                  label="Player to improve"
+                  label="Model"
                   hint={
-                    setup.role === "auto"
-                      ? "The writer picks one player each round"
-                      : undefined
+                    writer === setup.model
+                      ? `${short(setup.model)} plays all five positions and rewrites their prompts.`
+                      : `${short(setup.model)} plays all five positions. It can't write text, so ${short(writer!)} rewrites the prompts.`
                   }
                 >
-                  <Segmented
-                    label="Player to improve"
-                    size="sm"
-                    full
-                    value={setup.role}
-                    options={[
-                      ...ROLES.map((r) => ({ value: r, label: r })),
-                      {
-                        value: "auto" as const,
-                        label: "Any",
-                        title: "The writer chooses each round",
-                      },
-                    ]}
-                    onChange={(v) =>
-                      patch({ role: v as Role | "auto", collectionId: "" })
-                    }
-                  />
+                  <select
+                    id="rsi-model"
+                    value={setup.model}
+                    onChange={(e) => patch({ model: e.target.value })}
+                  >
+                    {MODEL_OPTIONS.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.short} · {m.id}
+                      </option>
+                    ))}
+                  </select>
                 </Field>
-              </fieldset>
-
-              <fieldset className={s.group}>
-                <legend className="eyebrow">Models</legend>
-                <div className={s.pair}>
-                  <Field label="Players" hint="All five">
-                    <select
-                      id="rsi-model"
-                      value={setup.model}
-                      onChange={(e) => patch({ model: e.target.value })}
-                    >
-                      {MODEL_OPTIONS.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.short} · {m.id}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                  <Field label="Writer" hint="Rewrites the prompt">
-                    <select
-                      id="rsi-writer"
-                      value={setup.writer}
-                      onChange={(e) => patch({ writer: e.target.value })}
-                    >
-                      {writers.map((m) => (
-                        <option key={m.id} value={m.id} disabled={!m.available}>
-                          {m.short}
-                          {m.available ? "" : ` (${m.reason})`}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                </div>
               </fieldset>
 
               <fieldset className={s.group}>
@@ -541,31 +476,26 @@ export default function RsiView() {
                 </p>
               </fieldset>
 
-              <fieldset className={s.group}>
-                <legend className="eyebrow">Guidance · optional</legend>
-                <Field
-                  label="Critical events"
-                  hint={
-                    collections.length
-                      ? "Diagnoses sent to the writer"
-                      : "None saved for this player yet"
-                  }
-                >
-                  <select
-                    id="rsi-collection"
-                    value={setup.collectionId}
-                    disabled={!collections.length}
-                    onChange={(e) => patch({ collectionId: e.target.value })}
-                  >
-                    <option value="">None</option>
-                    {collections.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.label} ({plural(c.annotationIds.length, "event")})
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-              </fieldset>
+              <label
+                className={s.check}
+                aria-disabled={!covered.length || undefined}
+              >
+                <input
+                  id="rsi-guidance"
+                  type="checkbox"
+                  checked={setup.guidance && covered.length > 0}
+                  disabled={!covered.length}
+                  onChange={(e) => patch({ guidance: e.target.checked })}
+                />
+                <span>
+                  <span className={s.checkTitle}>Use my critical events</span>
+                  <span className={s.note}>
+                    {covered.length
+                      ? `Sends your diagnoses for ${covered.join(", ")} to the writer.`
+                      : "None saved for this formation yet. Annotate moments in Simulate to add some."}
+                  </span>
+                </span>
+              </label>
 
               <EstimatePanel
                 preview={preview}
@@ -655,16 +585,14 @@ export default function RsiView() {
         {setup && preview && (
           <div className={s.confirm}>
             <p>
-              RSI will improve the{" "}
-              <strong>
-                {setup.role === "auto" ? "most promising player's" : setup.role}
-              </strong>{" "}
-              prompt in{" "}
+              RSI will tune all five prompts in{" "}
               <strong>{teams.find((t) => t.id === setup.teamId)?.label}</strong>
               , playing {setup.matches} matches per round with{" "}
-              {MODEL_OPTIONS.find((m) => m.id === setup.model)?.short ??
-                setup.model}{" "}
-              and rewriting with {setup.writer}.
+              {short(setup.model)}
+              {writer !== setup.model
+                ? ` and rewriting with ${short(writer!)}`
+                : ""}
+              .
             </p>
             <ul className={s.confirmList}>
               <li>
@@ -677,7 +605,7 @@ export default function RsiView() {
               </li>
               <li>
                 You can pause or stop at any time. The best version so far is
-                saved as a new prompt version.
+                saved as new prompt versions and a team version.
               </li>
             </ul>
           </div>
@@ -764,14 +692,14 @@ function HowItWorks() {
           matches. Stored matches with identical settings are reused for free.
         </li>
         <li>
-          <strong>Rewrite.</strong> A writer model reads the scores, the
-          player's decisions at flagged moments and every earlier attempt, then
-          returns a full new prompt.
+          <strong>Rewrite.</strong> The writer reads the scores, every player's
+          decisions at flagged moments and every earlier attempt, then rewrites
+          the prompts it thinks will help most, from one position to all five.
         </li>
         <li>
-          <strong>Replay.</strong> The rewrite plays the same seeds from both
-          ends. If it falls behind in both matches of the first seed, the rest
-          are skipped.
+          <strong>Replay.</strong> The rewritten squad plays the same seeds from
+          both ends. If it falls behind in both matches of the first seed, the
+          rest are skipped.
         </li>
         <li>
           <strong>Keep the best.</strong> It replaces the best only with more
@@ -787,6 +715,10 @@ function HowItWorks() {
     </Card>
   );
 }
+
+/** Positions whose best prompt differs from the start. */
+const changedRoles = (ss: RsiSession) =>
+  ROLES.filter((r) => ss.best.prompts[r] !== ss.start[r].text);
 
 function SessionPanel({
   detail,
@@ -842,7 +774,7 @@ function SessionPanel({
       : ss.baseline.stage === "evaluating"
         ? `Playing baseline matches · ${playing(ss.baseline.runIds.filter((id) => !ss.baseline.reusedRunIds.includes(id)))} done`
         : current?.stage === "rewriting"
-          ? `Round ${current.n} · ${ss.config.writer.model} is rewriting the prompt`
+          ? `Round ${current.n} · ${short(ss.config.writer.model)} is rewriting the prompts`
           : current?.stage === "evaluating"
             ? `Round ${current.n} · playing matches · ${playing(current.runIds)} done`
             : "Preparing the next round";
@@ -853,14 +785,14 @@ function SessionPanel({
         <div className={s.sessionHead}>
           <div>
             <span className="eyebrow">Session · {dateTime(ss.createdAt)}</span>
-            <h2 className={s.sessionTitle}>{ss.label}</h2>
+            <h2 className={s.sessionTitle}>{ss.config.teamLabel}</h2>
             <p className={s.meta}>
-              {ss.config.formationName} ·{" "}
-              {MODEL_OPTIONS.find((m) => m.id === ss.config.models.GK)?.short ??
-                ss.config.models.GK}{" "}
-              players · {ss.config.writer.model} writer · {ss.config.bot} bots ·{" "}
-              {ss.config.duration}s matches · {ss.config.seeds.length * 2} per
-              round
+              {short(ss.config.model)} plays
+              {ss.config.writer.model !== ss.config.model
+                ? ` · ${short(ss.config.writer.model)} writes`
+                : " and writes"}{" "}
+              · {ss.config.bot} bots · {ss.config.duration}s matches ·{" "}
+              {ss.config.seeds.length * 2} per round
             </p>
           </div>
           <div className={s.controls}>
@@ -957,11 +889,7 @@ function SessionPanel({
           <li className={s.round}>
             <div className={s.roundHead}>
               <span className={s.roundNo}>Start</span>
-              <span className={s.roundTitle}>
-                {ss.config.role === "auto"
-                  ? "Starting squad"
-                  : `${ss.config.role} · ${ss.start[ss.config.role]?.label}`}
-              </span>
+              <span className={s.roundTitle}>{ss.config.teamLabel}</span>
               {ss.baseline.stage === "done" ? (
                 <Badge>Baseline</Badge>
               ) : (
@@ -1021,7 +949,13 @@ function RoundItem({
     >
       <div className={s.roundHead}>
         <span className={s.roundNo}>R{r.n}</span>
-        <span className={s.roundTitle}>{r.role ?? "Choosing a player"}</span>
+        <span className={s.roundTitle}>
+          {r.roles.length
+            ? r.roles.join(" · ")
+            : r.stage === "rewriting"
+              ? "Rewriting"
+              : "No prompts changed"}
+        </span>
         {o ? (
           <Badge tone={o.tone}>{o.label}</Badge>
         ) : (
@@ -1034,7 +968,10 @@ function RoundItem({
       {r.changes.length > 0 && (
         <ul className={s.changes}>
           {r.changes.map((c, i) => (
-            <li key={i}>{c}</li>
+            <li key={i}>
+              <span className={s.roleTag}>{c.role}</span>
+              {c.change}
+            </li>
           ))}
         </ul>
       )}
@@ -1043,11 +980,16 @@ function RoundItem({
       )}
       {r.score && <p className={s.score}>{scoreLine(r.score)}</p>}
       {r.reason && r.stage === "done" && <p className={s.reason}>{r.reason}</p>}
-      {r.text && r.role && (
+      {r.roles.length > 0 && (
         <details className={s.prompt}>
-          <summary>Prompt and changes from the start</summary>
+          <summary>Rewritten prompts and changes from the start</summary>
           {r.rationale && <p className={s.rationale}>{r.rationale}</p>}
-          <Diff before={ss.start[r.role].text} after={r.text} />
+          {r.roles.map((role) => (
+            <div key={role} className={s.promptBlock}>
+              <span className={s.roleTag}>{role}</span>
+              <Diff before={ss.start[role].text} after={r.prompts[role]!} />
+            </div>
+          ))}
         </details>
       )}
     </li>
@@ -1140,22 +1082,23 @@ function BestCard({
   w: Workspace | undefined;
   onUse: (teamId: string, label: string) => void;
 }) {
-  const [view, setView] = useState<"changes" | "prompt" | null>(null);
-  const finished = !LIVE.includes(ss.status);
-  if (ss.best.round === 0) {
+  const [view, setView] = useState<"changes" | "prompt" | null>(null),
+    [picked, setPicked] = useState<Role | null>(null);
+  const finished = !LIVE.includes(ss.status),
+    roles = changedRoles(ss);
+  if (ss.best.round === 0 || !roles.length) {
     if (!finished || !ss.baseline.score) return null;
     return (
       <Card eyebrow="Result" title="No version beat the start" data-reveal>
         <p className={s.muted}>
           None of the rewrites scored better than the starting version on these
-          matches, so nothing was saved. Try more matches per round, a different
-          player or critical-event guidance.
+          matches, so nothing was saved. Try more matches per round or turn on
+          your critical events.
         </p>
       </Card>
     );
   }
-  const round = ss.rounds.find((r) => r.n === ss.best.round)!,
-    role = round.role!,
+  const role = picked && roles.includes(picked) ? picked : roles[0],
     // A full rewrite shares no lines with the start, so open on the prompt itself.
     shown =
       view ??
@@ -1164,32 +1107,19 @@ function BestCard({
       )
         ? "changes"
         : "prompt"),
-    savedPrompt = ss.saved?.promptIds.length
-      ? w?.prompts.find(
-          (p) => ss.saved!.promptIds.includes(p.id) && p.role === role,
-        )
+    saved = ss.saved?.promptIds.length
+      ? w?.prompts.filter((p) => ss.saved!.promptIds.includes(p.id))
       : undefined,
+    savedPrompt = saved?.find((p) => p.role === role),
     savedTeam = ss.saved?.teamId
       ? w?.teams.find((t) => t.id === ss.saved!.teamId)
       : undefined;
   return (
     <Card
       eyebrow={finished ? "Result" : "Best so far"}
-      title={`Round ${ss.best.round} · ${role} beat the start ${decidedBy(ss.best.score, ss.baseline.score)}`}
+      title={`Round ${ss.best.round} beat the start ${decidedBy(ss.best.score, ss.baseline.score)}`}
       className={s.best}
       data-reveal
-      actions={
-        <Segmented
-          label="Best version view"
-          size="sm"
-          value={shown}
-          options={[
-            { value: "changes", label: "Changes" },
-            { value: "prompt", label: "Full prompt" },
-          ]}
-          onChange={(v) => setView(v as "changes" | "prompt")}
-        />
-      }
     >
       <dl className={s.compare}>
         <div>
@@ -1201,42 +1131,65 @@ function BestCard({
           <dd>{scoreLine(ss.baseline.score)}</dd>
         </div>
       </dl>
+      <div className={s.bestBar}>
+        <Segmented
+          label="Changed position"
+          size="sm"
+          value={role}
+          options={roles.map((r) => ({ value: r, label: r }))}
+          onChange={(v) => setPicked(v as Role)}
+        />
+        <Segmented
+          label="Best version view"
+          size="sm"
+          value={shown}
+          options={[
+            { value: "changes", label: "Changes" },
+            { value: "prompt", label: "Full prompt" },
+          ]}
+          onChange={(v) => setView(v as "changes" | "prompt")}
+        />
+      </div>
       {shown === "changes" ? (
         <Diff before={ss.start[role].text} after={ss.best.prompts[role]} />
       ) : (
         <pre className={s.full}>{ss.best.prompts[role]}</pre>
       )}
       <div className={s.bestActions}>
-        {savedPrompt ? (
+        {savedTeam ? (
           <>
-            <Badge tone="good">Saved as {savedPrompt.label}</Badge>
-            <Button
-              size="sm"
-              href={`/prompts?prompt=${savedPrompt.id}`}
-              icon="prompt"
-            >
-              Open in Prompts
-            </Button>
-            {savedTeam && (
+            <Badge tone="good">
+              Saved {plural(saved?.length ?? 0, "prompt version")} ·{" "}
+              {savedTeam.label}
+            </Badge>
+            {savedPrompt && (
               <Button
                 size="sm"
-                variant="primary"
-                icon="squad"
-                onClick={() => onUse(savedTeam.id, savedTeam.label)}
+                href={`/prompts?prompt=${savedPrompt.id}`}
+                icon="prompt"
               >
-                Use in squad
+                Open {role} in Prompts
               </Button>
             )}
+            <Button
+              size="sm"
+              variant="primary"
+              icon="squad"
+              onClick={() => onUse(savedTeam.id, savedTeam.label)}
+            >
+              Use in squad
+            </Button>
           </>
         ) : (
           <span className={s.muted}>
-            Saved as a new prompt version when the session ends.
+            Saved as new prompt versions and a team version when the session
+            ends.
           </span>
         )}
         <CopyButton
           size="sm"
           text={ss.best.prompts[role]}
-          label="Copy prompt"
+          label={`Copy ${role} prompt`}
         />
       </div>
       <p className={s.note}>
@@ -1264,7 +1217,8 @@ function History({
           <thead>
             <tr>
               <th scope="col">Started</th>
-              <th scope="col">Session</th>
+              <th scope="col">Starting version</th>
+              <th scope="col">Model</th>
               <th scope="col">Rounds</th>
               <th scope="col">Start → best</th>
               <th scope="col">Spent</th>
@@ -1286,7 +1240,8 @@ function History({
                 }}
               >
                 <td>{date(x.createdAt)}</td>
-                <td className={s.cellLabel}>{x.label}</td>
+                <td className={s.cellLabel}>{x.config.teamLabel}</td>
+                <td>{short(x.config.model)}</td>
                 <td>{used(x.rounds)}</td>
                 <td>
                   {pts(x.baseline.score)} → {pts(x.best.score)}

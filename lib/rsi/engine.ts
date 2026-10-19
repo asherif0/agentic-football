@@ -5,13 +5,19 @@ import type { Run, RunConfig, Side } from "../simulation/types";
 import { PRICING, estimatedCost } from "../simulation/pricing";
 import { conditionKey } from "../improvement/evaluation";
 import { stableJSON } from "../improvement/keys";
-import { DEFAULT_PROPOSAL_MODEL } from "../prompt-proposals";
-import { proposalModelProblem, providerFor } from "../../app/lib/models";
+import {
+  modelShort,
+  proposalModelProblem,
+  providerFor,
+  writerFor,
+} from "../../app/lib/models";
 import { estimateMatchCost, FALLBACK_USAGE } from "../../app/lib/squad";
 import { rsiRepository } from "./persistence";
 import { earlyReject, evaluate, isBetter, matchResult } from "./score";
 import {
+  guidanceCollections,
   MAX_INPUT_TOKENS,
+  WRITER_OUTPUT_TOKENS,
   parseRewrite,
   requestRewrite,
   rewriteInput,
@@ -33,7 +39,6 @@ export const SEEDS = [42, 43, 44, 45];
 export const MATCH_COUNTS = [2, 4, 6, 8];
 /** Safety margin on the per-match estimate when deciding whether a round fits. */
 export const MARGIN = 1.3;
-const WRITER_OUTPUT_TOKENS = 4096;
 const ACTIVE = ["queued", "running", "paused"];
 const FINISHED: RsiStatus[] = ["completed", "limited", "stopped", "failed"];
 
@@ -135,9 +140,6 @@ export function previewRsi(repo: SimRepository, input: any) {
   const formation = w.formations.find((f) => f.id === team.formationId);
   if (!formation)
     throw new Error("The starting version's formation is missing.");
-  const role = input.role ?? "auto";
-  if (role !== "auto" && !ROLES.includes(role))
-    throw new Error("Choose a player to improve.");
   const matches = int(input.matchesPerRound, 4, 2, 8, "Matches per round");
   if (!MATCH_COUNTS.includes(matches))
     throw new Error("Matches per round must be 2, 4, 6 or 8.");
@@ -155,14 +157,15 @@ export function previewRsi(repo: SimRepository, input: any) {
   const bot = input.bot ?? "balanced";
   if (!["balanced", "press", "counter"].includes(bot))
     throw new Error("Choose an opponent style.");
-  const models = Object.fromEntries(
-    ROLES.map((r) => [r, String(input.models?.[r] ?? "").trim()]),
-  ) as Record<Role, string>;
-  if (ROLES.some((r) => !models[r]))
-    throw new Error("Choose the players' model.");
+  const model = String(input.model ?? "").trim();
+  if (!model) throw new Error("Choose a model.");
+  const models = Object.fromEntries(ROLES.map((r) => [r, model])) as Record<
+    Role,
+    string
+  >;
   const provider =
     input.provider === "mock" ? "mock" : providerFor(models, input.provider);
-  const writerModel = String(input.writerModel || DEFAULT_PROPOSAL_MODEL);
+  const writerModel = writerFor(model);
   const writerPricing = PRICING[writerModel] ?? null;
   if (provider !== "mock") {
     const problem = proposalModelProblem(
@@ -175,10 +178,9 @@ export function previewRsi(repo: SimRepository, input: any) {
       throw new Error(
         `No price is known for ${writerModel}, so the spending limit can't be enforced.`,
       );
-    const unpriced = ROLES.map((r) => models[r]).find((m) => !PRICING[m]);
-    if (unpriced)
+    if (!PRICING[model])
       throw new Error(
-        `No price is known for ${unpriced}, so the spending limit can't be enforced.`,
+        `No price is known for ${model}, so the spending limit can't be enforced.`,
       );
   }
   const scenarios = repo
@@ -189,18 +191,10 @@ export function previewRsi(repo: SimRepository, input: any) {
       : scenarios[0]?.id;
   if (!scenarioId)
     throw new Error("This formation has no starting layout yet.");
-  const collectionId = input.collectionId || null;
-  if (collectionId) {
-    const c = w.collections.find((c) => c.id === collectionId);
-    if (
-      !c ||
-      c.formationId !== team.formationId ||
-      (role !== "auto" && c.role !== role)
-    )
-      throw new Error(
-        "Choose a critical-events collection for this player and formation.",
-      );
-  }
+  const collectionIds =
+    input.guidance === false
+      ? []
+      : guidanceCollections(w, team.formationId).map((c) => c.id as string);
   const calls = plannedCalls(duration, 1, false);
   const baseline = repo.buildConfig({
     teamId: team.id,
@@ -224,7 +218,7 @@ export function previewRsi(repo: SimRepository, input: any) {
     provider === "mock" ? ["test fixture"] : ["local simulation", "rsi"],
   );
   const usage = observedUsage(repo),
-    observed = ROLES.every((r) => usage[models[r]]);
+    observed = !!usage[model];
   let perMatchUsd = 0,
     headroomUsd = 0,
     rewriteMaxUsd = 0;
@@ -288,8 +282,8 @@ export function previewRsi(repo: SimRepository, input: any) {
       teamLabel: team.label,
       formationId: team.formationId,
       formationName: formation.label || formation.family,
-      role,
       scenarioId,
+      model,
       models,
       inference: baseline.team.inference,
       provider,
@@ -306,7 +300,7 @@ export function previewRsi(repo: SimRepository, input: any) {
       costLimitUsd,
       maxRounds,
       patience,
-      collectionId,
+      collectionIds,
       baseline,
     },
     reusedRunIds: reused.map((r) => r.id),
@@ -338,7 +332,7 @@ export function createRsi(repo: SimRepository, input: any) {
       version: RSI_VERSION,
       createdAt: now,
       updatedAt: now,
-      label: `${preview.config.role === "auto" ? "Any player" : preview.config.role} · ${team.label}`,
+      label: `${team.label} · ${modelShort(preview.config.model)}`,
       status: "running",
       reason: null,
       config: preview.config,
@@ -497,7 +491,8 @@ export function nextRoundUsd(s: RsiSession) {
 /** Rounds that used an attempt: a writer call that never connected doesn't count. */
 export const attempts = (s: RsiSession) =>
   s.rounds.filter(
-    (r) => !(r.outcome === "failed" && !r.text && !r.rewrite?.responseId),
+    (r) =>
+      !(r.outcome === "failed" && !r.roles.length && !r.rewrite?.responseId),
   ).length;
 
 function stopReason(repo: SimRepository, s: RsiSession) {
@@ -571,7 +566,7 @@ function saveBest(repo: SimRepository, s: RsiSession) {
     if (sameText(s.best.prompts[role], s.start[role].text)) continue;
     const parent = w.prompts.find((p) => p.id === s.start[role].id)!,
       origin = s.rounds
-        .filter((r) => r.role === role && r.text === s.best.prompts[role])
+        .filter((r) => r.prompts[role] === s.best.prompts[role])
         .at(-1)!;
     const p = repo.store.save("prompts", {
       label: `${parent.label} · RSI r${origin.n}`,
@@ -603,7 +598,9 @@ function saveBest(repo: SimRepository, s: RsiSession) {
         outputTokens: origin.rewrite?.outputTokens,
         originalProposal: {
           rationale: origin.rationale,
-          changes: origin.changes,
+          changes: origin.changes
+            .filter((c) => c.role === role)
+            .map((c) => c.change),
         },
       },
     });
@@ -613,7 +610,7 @@ function saveBest(repo: SimRepository, s: RsiSession) {
   }
   if (!saved.length) return { promptIds: [], teamId: null };
   const t = repo.store.save("teams", {
-    label: `${team.label} · RSI ${changed.join("+")}`,
+    label: `${team.label} · RSI r${s.best.round}`,
     formationId: team.formationId,
     parentId: team.id,
     promptIds,
@@ -709,7 +706,6 @@ function settleRound(repo: SimRepository, s: RsiSession, round: RsiRound) {
   }
   const score = evaluate(results);
   if (isBetter(score, s.best.score)) {
-    const role = round.role!;
     conclude(
       round,
       "improved",
@@ -718,8 +714,13 @@ function settleRound(repo: SimRepository, s: RsiSession, round: RsiRound) {
     );
     s.best = {
       round: round.n,
-      prompts: { ...s.best.prompts, [role]: round.text! },
-      ids: { ...s.best.ids, [role]: `rsi-${s.id}-r${round.n}-${role}` },
+      prompts: { ...s.best.prompts, ...round.prompts },
+      ids: {
+        ...s.best.ids,
+        ...Object.fromEntries(
+          round.roles.map((r) => [r, `rsi-${s.id}-r${round.n}-${r}`]),
+        ),
+      },
       score,
       results,
     };
@@ -739,7 +740,7 @@ function settleRound(repo: SimRepository, s: RsiSession, round: RsiRound) {
 
 function apiProblem(e: unknown) {
   if (e instanceof OpenAI.APIConnectionTimeoutError)
-    return "The writer didn't answer within 60 seconds. Its reserved cost stays counted; resume to try again.";
+    return "The writer didn't answer within 150 seconds. Its reserved cost stays counted; resume to try again.";
   if (e instanceof OpenAI.APIConnectionError) {
     const code = (e.cause as { code?: string } | undefined)?.code;
     return `Couldn't reach the writer's API${code ? ` (${code})` : ""}, even after one retry. Nothing was charged; resume to try again.`;
@@ -774,8 +775,8 @@ async function startRound(
       s.rounds.push({
         n,
         stage: "rewriting",
-        role: s.config.role === "auto" ? null : s.config.role,
-        text: null,
+        roles: [],
+        prompts: {},
         rationale: "",
         changes: [],
         seriesIds: [],
@@ -793,7 +794,7 @@ async function startRound(
         },
         startedAt: new Date().toISOString(),
       });
-      s.reason = `Round ${n}: ${s.config.writer.model} is rewriting ${s.config.role === "auto" ? "a prompt" : `the ${s.config.role} prompt`}`;
+      s.reason = `Round ${n}: ${s.config.writer.model} is rewriting the squad's prompts`;
       return db.save(s);
     })
     .immediate();
@@ -851,34 +852,39 @@ async function startRound(
       try {
         if (result.status !== "completed")
           throw new Error("The writer's answer was incomplete or refused.");
-        rewrite = parseRewrite(
-          result.output_text,
-          s.config.role === "auto" ? [...ROLES] : [s.config.role],
-        );
+        rewrite = parseRewrite(result.output_text);
       } catch (e) {
         conclude(round, "failed", (e as Error).message, []);
         s.noImprovement++;
         db.save(s);
         return;
       }
-      round.role = rewrite.role;
-      round.text = rewrite.text;
+      // Only prompts that differ from the current best count as changes.
+      const changed = ROLES.filter(
+        (r) =>
+          rewrite.prompts[r] !== undefined &&
+          !sameText(rewrite.prompts[r]!, s.best.prompts[r]),
+      );
+      round.roles = changed;
+      round.prompts = Object.fromEntries(
+        changed.map((r) => [r, rewrite.prompts[r]!]),
+      );
       round.rationale = rewrite.rationale;
-      round.changes = rewrite.changes;
-      const repeat =
-        sameText(rewrite.text, s.best.prompts[rewrite.role]) ||
+      round.changes = rewrite.changes.filter((c) => changed.includes(c.role));
+      const tried = (r: Role, text: string) =>
         s.rounds.some(
-          (r) =>
-            r.n !== n &&
-            r.role === rewrite.role &&
-            !!r.text &&
-            sameText(r.text, rewrite.text),
+          (x) => x.n !== n && !!x.prompts[r] && sameText(x.prompts[r]!, text),
         );
-      if (repeat) {
+      if (
+        !changed.length ||
+        changed.every((r) => tried(r, round.prompts[r]!))
+      ) {
         conclude(
           round,
           "no-change",
-          "The writer returned a prompt that was already tried, so no matches were played.",
+          changed.length
+            ? "The writer returned prompts that were already tried, so no matches were played."
+            : "The writer didn't change any prompt, so no matches were played.",
           [],
         );
         s.noImprovement++;
@@ -887,10 +893,8 @@ async function startRound(
       }
       round.stage = "evaluating";
       const prompts = promptsFor(s.best);
-      prompts[rewrite.role] = {
-        id: `rsi-${s.id}-r${n}-${rewrite.role}`,
-        text: rewrite.text,
-      };
+      for (const r of changed)
+        prompts[r] = { id: `rsi-${s.id}-r${n}-${r}`, text: round.prompts[r]! };
       schedule(repo, s, round, matchList(s.config.seeds), prompts);
       s.reason = `Round ${n}: playing ${round.runIds.length} matches`;
       if (s.status !== "running") stopSeries(repo, round.seriesIds, "pause");

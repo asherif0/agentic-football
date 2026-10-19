@@ -98,6 +98,12 @@ export function proposalModelProblem(
 /** TypeSafe Jev models are routed to the System One API instead of OpenAI. */
 export const isJev = (model: string) => /^jev-/.test(model);
 
+/** RSI uses one model for playing and writing; a model that can't write text hands the writing to Luna. */
+export const writerFor = (model: string) =>
+  (MODEL_OPTIONS.find((m) => m.id === model)?.writes ?? !isJev(model))
+    ? model
+    : "gpt-6-luna";
+
 /** Jev returns a choice with probabilities; reasoning effort and output limits don't apply. */
 export const usesInference = (model: string) => !isJev(model);
 

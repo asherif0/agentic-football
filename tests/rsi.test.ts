@@ -30,10 +30,8 @@ function setup() {
   const input = (over: Record<string, unknown> = {}) => ({
     teamId: "team-provisional",
     scenarioId,
-    role: "MID",
     provider: "mock",
-    models: Object.fromEntries(ROLES.map((r) => [r, "gpt-6-luna"])),
-    writerModel: "gpt-6-luna",
+    model: "gpt-6-luna",
     bot: "balanced",
     duration: 10,
     matchesPerRound: 2,
@@ -68,20 +66,29 @@ const queued = (repo: ReturnType<typeof simulationRepository>) =>
     .filter((r) => r.status === "queued")
     .reverse();
 
-function writer(texts: string[], role = "MID") {
+/** A fake writer that returns the given prompts by role, one answer per call. */
+function writer(answers: Record<string, string>[]) {
   let i = 0;
-  return async () => ({
-    status: "completed",
-    id: `resp-${i}`,
-    model: "gpt-6-luna",
-    usage: { input_tokens: 1000, output_tokens: 200 },
-    output_text: JSON.stringify({
-      role,
-      text: texts[Math.min(i++, texts.length - 1)],
-      rationale: "Evidence shows the MID retreats from the ball.",
-      changes: ["Move toward the ball carrier when a teammate has it."],
-    }),
-  });
+  return async () => {
+    const prompts = answers[Math.min(i, answers.length - 1)];
+    return {
+      status: "completed",
+      id: `resp-${i++}`,
+      model: "gpt-6-luna",
+      usage: { input_tokens: 1000, output_tokens: 200 },
+      output_text: JSON.stringify({
+        prompts: Object.entries(prompts).map(([role, text]) => ({
+          role,
+          text,
+        })),
+        changes: Object.keys(prompts).map((role) => ({
+          role,
+          change: `Tightened ${role} passing rules.`,
+        })),
+        rationale: "Evidence shows passes into pressure in our third.",
+      }),
+    };
+  };
 }
 
 const result = (
@@ -137,28 +144,40 @@ test("early reject needs both first-seed matches to be worse than the best", () 
 });
 
 test("writer answers are validated and whitespace changes count as the same prompt", () => {
-  assert.throws(() => parseRewrite("not json", ["MID"]), /valid JSON/);
+  const answer = (prompts: unknown[]) =>
+    JSON.stringify({ prompts, changes: [], rationale: "r" });
+  assert.throws(() => parseRewrite("not json"), /valid JSON/);
+  assert.throws(() => parseRewrite(answer([])), /didn't include/);
   assert.throws(
-    () =>
-      parseRewrite(
-        JSON.stringify({ role: "GK", text: "x", rationale: "r", changes: [] }),
-        ["MID"],
-      ),
-    /missing/,
+    () => parseRewrite(answer([{ role: "MID", text: "x".repeat(6001) }])),
+    /over-long/,
   );
   assert.throws(
     () =>
       parseRewrite(
-        JSON.stringify({
-          role: "MID",
-          text: "x".repeat(6001),
-          rationale: "r",
-          changes: [],
-        }),
-        ["MID"],
+        answer([
+          { role: "MID", text: "a" },
+          { role: "MID", text: "b" },
+        ]),
       ),
-    /missing/,
+    /repeated/,
   );
+  const ok = parseRewrite(
+    JSON.stringify({
+      prompts: [
+        { role: "DEF", text: " Stay goal-side. " },
+        { role: "FOR2", text: "Stay reachable." },
+      ],
+      changes: [
+        { role: "DEF", change: "Goal-side rule." },
+        { role: "XX", change: "Ignored." },
+      ],
+      rationale: "Because.",
+    }),
+  );
+  assert.deepEqual(Object.keys(ok.prompts), ["DEF", "FOR2"]);
+  assert.equal(ok.prompts.DEF, "Stay goal-side.");
+  assert.deepEqual(ok.changes, [{ role: "DEF", change: "Goal-side rule." }]);
   assert.equal(sameText("Hold  the line.\n", "Hold the line."), true);
 });
 
@@ -179,7 +198,7 @@ test("a mock session plays a baseline, keeps a better rewrite and saves it as a 
   await advanceRsi(f.repo, s.id); // round 1: practice rewrite, then matches
   let live = f.db.get(s.id)!;
   assert.equal(live.rounds[0].stage, "evaluating");
-  assert.equal(live.rounds[0].role, "MID");
+  assert.deepEqual(live.rounds[0].roles, ["DEF", "MID"]);
   const runs = live.rounds[0].runIds.map((id) => f.repo.run(id)!);
   assert.ok(
     runs.every(
@@ -187,7 +206,12 @@ test("a mock session plays a baseline, keeps a better rewrite and saves it as a 
     ),
   );
   assert.ok(
-    runs.every((r) => r.config.team.prompts.MID.text === live.rounds[0].text),
+    runs.every(
+      (r) =>
+        r.config.team.prompts.MID.text === live.rounds[0].prompts.MID &&
+        r.config.team.prompts.DEF.text === live.rounds[0].prompts.DEF &&
+        r.config.team.prompts.GK.id === s.start.GK.id,
+    ),
   );
   assert.notEqual(runs[0].config.team.prompts.MID.id, s.start.MID.id);
   for (const r of queued(f.repo)) complete(f.repo, r, 1, 0);
@@ -206,13 +230,17 @@ test("a mock session plays a baseline, keeps a better rewrite and saves it as a 
   assert.equal(live.status, "completed");
   assert.match(live.reason!, /all 2 rounds/);
   const w = f.store.read(),
-    prompt = w.prompts.find((p) => p.id === live.saved!.promptIds[0])!,
+    saved = w.prompts.filter((p) => live.saved!.promptIds.includes(p.id)),
+    prompt = saved.find((p) => p.role === "MID")!,
     team = w.teams.find((t) => t.id === live.saved!.teamId)!;
+  assert.deepEqual(saved.map((p) => p.role).sort(), ["DEF", "MID"]);
   assert.equal(prompt.parentId, s.start.MID.id);
-  assert.equal(prompt.text, live.rounds[0].text);
+  assert.equal(prompt.text, live.rounds[0].prompts.MID);
   assert.equal(prompt.rsi.sessionId, s.id);
   assert.equal(prompt.status, "draft");
   assert.equal(team.promptIds.MID, prompt.id);
+  assert.equal(team.promptIds.DEF, saved.find((p) => p.role === "DEF")!.id);
+  assert.match(team.label, /RSI r1$/);
   assert.equal(team.parentId, "team-provisional");
   assert.equal(
     team.promptIds.GK,
@@ -220,7 +248,7 @@ test("a mock session plays a baseline, keeps a better rewrite and saves it as a 
   );
   assert.equal(
     w.prompts.filter((p) => p.rsi).length,
-    1,
+    2,
     "rejected candidates are not saved as prompt versions",
   );
 });
@@ -292,7 +320,7 @@ test("a repeated rewrite plays no matches and counts toward the no-improvement s
     )!;
   const s = createRsi(f.repo, f.input({ patience: 1 }));
   for (const r of queued(f.repo)) complete(f.repo, r, 0, 0);
-  const create = writer([start.text + "   "]);
+  const create = writer([{ MID: start.text + "   " }]);
   await advanceRsi(f.repo, s.id, create);
   await advanceRsi(f.repo, s.id, create);
   let live = f.db.get(s.id)!;
@@ -336,7 +364,7 @@ test("spending stays under the limit: rounds only start when they fit and matche
     "the first series may use the whole limit",
   );
   for (const r of queued(f.repo)) complete(f.repo, r, 0, 0, 0.004);
-  const create = writer(["Better MID prompt"]);
+  const create = writer([{ MID: "Better MID prompt" }]);
   await advanceRsi(f.repo, s.id, create);
   await advanceRsi(f.repo, s.id, create);
   let live = f.db.get(s.id)!;
@@ -373,7 +401,11 @@ test("stopping keeps the best version so far and stops queued matches", async ()
   const stopped = controlRsi(f.repo, s.id, "stop");
   assert.equal(stopped.status, "stopped");
   assert.equal(stopped.rounds[1].outcome, "stopped");
-  assert.equal(stopped.saved!.promptIds.length, 1);
+  assert.equal(
+    stopped.saved!.promptIds.length,
+    2,
+    "DEF and MID were rewritten",
+  );
   assert.equal(queued(f.repo).length, 0);
   assert.throws(() => controlRsi(f.repo, s.id, "run"), /already finished/);
 });
@@ -386,8 +418,8 @@ test("a worker restart during a rewrite pauses the session and keeps the reserve
   live.rounds.push({
     n: 1,
     stage: "rewriting",
-    role: "MID",
-    text: null,
+    roles: [],
+    prompts: {},
     rationale: "",
     changes: [],
     seriesIds: [],
@@ -449,7 +481,7 @@ test("writer calls that never connect don't use up rounds", async () => {
   assert.equal(live.status, "paused");
   assert.match(live.reason!, /Couldn't reach/);
   controlRsi(f.repo, s.id, "run");
-  await advanceRsi(f.repo, s.id, writer(["A different FOR2-free MID prompt"]));
+  await advanceRsi(f.repo, s.id, writer([{ MID: "A different MID prompt" }]));
   live = f.db.get(s.id)!;
   assert.equal(live.rounds.length, 2);
   assert.equal(
@@ -457,4 +489,46 @@ test("writer calls that never connect don't use up rounds", async () => {
     "evaluating",
     "the failed call didn't count as the one allowed round",
   );
+});
+
+test("one model plays every position; Jev hands the writing to Luna", () => {
+  const f = setup();
+  const luna = previewRsi(f.repo, f.input());
+  assert.ok(ROLES.every((r) => luna.config.models[r] === "gpt-6-luna"));
+  assert.equal(luna.config.writer.model, "gpt-6-luna");
+  const sol = previewRsi(f.repo, f.input({ model: "gpt-6-sol" }));
+  assert.equal(sol.config.writer.model, "gpt-6-sol");
+  const jev = previewRsi(f.repo, f.input({ model: "jev-1.13.0" }));
+  assert.ok(ROLES.every((r) => jev.config.models[r] === "jev-1.13.0"));
+  assert.equal(jev.config.writer.model, "gpt-6-luna");
+  assert.throws(
+    () => previewRsi(f.repo, f.input({ model: "" })),
+    /Choose a model/,
+  );
+});
+
+test("a round can rewrite several positions; unchanged prompts are not counted", async () => {
+  const f = setup();
+  const s = createRsi(f.repo, f.input());
+  for (const r of queued(f.repo)) complete(f.repo, r, 0, 0);
+  await advanceRsi(f.repo, s.id);
+  const create = writer([
+    { GK: s.start.GK.text, DEF: "New DEF rules.", FOR2: "New FOR2 rules." },
+  ]);
+  await advanceRsi(f.repo, s.id, create);
+  const round = f.db.get(s.id)!.rounds[0];
+  assert.deepEqual(round.roles, ["DEF", "FOR2"], "GK came back unchanged");
+  assert.deepEqual(
+    round.changes.map((c) => c.role),
+    ["DEF", "FOR2"],
+  );
+  const run = f.repo.run(round.runIds[0])!;
+  assert.equal(run.config.team.prompts.DEF.text, "New DEF rules.");
+  assert.equal(run.config.team.prompts.GK.id, s.start.GK.id);
+  for (const r of queued(f.repo)) complete(f.repo, r, 1, 0);
+  await advanceRsi(f.repo, s.id);
+  const live = f.db.get(s.id)!;
+  assert.equal(live.best.prompts.FOR2, "New FOR2 rules.");
+  assert.equal(live.best.prompts.GK, s.start.GK.text);
+  assert.match(live.best.ids.DEF, /^rsi-.*-r1-DEF$/);
 });

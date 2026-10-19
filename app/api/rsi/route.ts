@@ -6,14 +6,8 @@ import {
 } from "../../../lib/simulation/server";
 import { rsiRepository } from "../../../lib/rsi/persistence";
 import { createRsi, previewRsi, withSpend } from "../../../lib/rsi/engine";
-import { proposalModels } from "../../lib/models";
-import { DEFAULT_PROPOSAL_MODEL } from "../../../lib/prompt-proposals";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-const keys = () => ({
-  openai: !!process.env.OPENAI_API_KEY,
-  jev: !!process.env.JEV_API_KEY,
-});
 export async function GET() {
   const repo = simRepo(),
     db = rsiRepository(repo);
@@ -24,13 +18,11 @@ export async function GET() {
       return {
         ...v,
         config: { ...v.config, baseline: undefined },
-        rounds: v.rounds.map((r) => ({ ...r, text: undefined })),
+        rounds: v.rounds.map((r) => ({ ...r, prompts: undefined })),
         start: undefined,
         best: { ...v.best, prompts: undefined },
       };
     }),
-    writers: proposalModels(keys(), process.env.PROMPT_REVISION_MODEL),
-    defaultWriter: process.env.PROMPT_REVISION_MODEL || DEFAULT_PROPOSAL_MODEL,
     ...workerStatus(),
   });
 }
