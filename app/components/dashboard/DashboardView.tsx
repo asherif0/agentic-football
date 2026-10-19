@@ -130,7 +130,7 @@ export default function DashboardView() {
       <section className={s.hero} aria-labelledby="hero-title">
         <div className={s.heroText}>
           <span className={s.heroEyebrow}>
-            <span className={s.pulse} /> Agentic Football Lab · 5v5
+            <span className={s.pulse} /> Agentic Football Lab
           </span>
           <h1 id="hero-title" className={s.headline}>
             {HEADLINE.map((w, i) => (
