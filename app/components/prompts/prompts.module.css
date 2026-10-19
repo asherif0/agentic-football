@@ -124,27 +124,20 @@
   letter-spacing: 0.03em;
   color: var(--text-3);
 }
-.newVersion {
-  flex-shrink: 0;
-  display: grid;
-  place-items: center;
-  min-width: 44px;
-  border: 1px dashed var(--border-strong);
-  border-radius: 12px;
-  background: transparent;
-  color: var(--text-2);
-}
-.newVersion:hover {
-  color: var(--text);
-  border-color: var(--text-3);
-}
 .docHead {
+  display: grid;
+  gap: 8px;
+  padding: 18px 20px 12px;
+}
+.actionRow {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 18px 20px 14px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 20px 14px;
+}
+.actionSpacer {
+  flex: 1;
 }
 .docTitle {
   font-size: 1.25rem;
@@ -163,14 +156,6 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-}
-.bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 0 20px 12px;
 }
 .text {
   margin: 0;

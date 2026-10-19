@@ -9,7 +9,6 @@ import {
   type Workspace,
 } from "../../../lib/domain";
 import { useAnalytics, useRunIndex, useWorkspace } from "../../lib/data/hooks";
-import { diffLines } from "../../lib/diff";
 import { download } from "../../lib/download";
 import {
   promptEvidence,
@@ -23,7 +22,6 @@ import RecordEditor from "../library/RecordEditor";
 import { usePreparation } from "../Preparation";
 import { NextStep, PageHeader } from "../shell/PageHeader";
 import { CopyButton } from "../ui/CopyButton";
-import { Icon } from "../ui/Icon";
 import { Drawer } from "../ui/Overlay";
 import {
   Badge,
@@ -34,6 +32,7 @@ import {
   Skeleton,
 } from "../ui/primitives";
 import { Segmented } from "../ui/Segmented";
+import { MenuButton } from "../ui/Menu";
 import { ExportDialog } from "./ExportDialog";
 import { ReviseDialog } from "./ReviseDialog";
 import s from "./prompts.module.css";
@@ -50,7 +49,6 @@ export default function PromptsView() {
     { data: ws } = useWorkspace(),
     { data: analytics } = useAnalytics({}),
     { data: index } = useRunIndex(),
-    [view, setView] = useState<"text" | "changes">("text"),
     [exporting, setExporting] = useState(params.get("export") === "1"),
     [revising, setRevising] = useState(!!params.get("revise")),
     [draft, setDraft] = useState<any>(null);
@@ -101,8 +99,54 @@ export default function PromptsView() {
     versions.find((v) => ranks[v.id]?.best) ??
     versions.at(-1);
   const parent = w?.prompts.find((x) => x.id === selected?.parentId);
-  useEffect(() => setView("text"), [selected?.id]);
 
+  // "Use in squad" works from any formation: a prompt from another formation
+  // switches the squad to a team of that formation first.
+  const usedInSquad =
+    !!selected &&
+    squadTeam?.formationId === formationId &&
+    inSquad(role) === selected.id;
+  function newBlank() {
+    if (!w || !formationId) return;
+    setDraft({
+      ...template("prompts", w),
+      formationId,
+      role,
+      hypothesisIds: [],
+    });
+  }
+  function useInSquad() {
+    if (!selected || !w) return;
+    if (squadTeam && squadTeam.formationId === selected.formationId) {
+      const lineup = { ...p.lineup };
+      if (selected.id === squadTeam.promptIds[role]) delete lineup[role];
+      else lineup[role] = selected.id;
+      set((old) => ({ ...old, lineup }));
+      toast(`${selected.label} is now ${role} in your squad.`, "success");
+      return;
+    }
+    const teams = w.teams.filter((t) => t.formationId === selected.formationId);
+    const team =
+      teams.find((t) => t.promptIds[role] === selected.id) ?? teams.at(-1);
+    if (!team) {
+      toast(
+        "There's no team version for this formation yet. Create one in Library → Team versions.",
+        "error",
+      );
+      return;
+    }
+    set((old) => ({
+      ...old,
+      team: team.id,
+      scenario: "",
+      lineup:
+        team.promptIds[role] === selected.id ? {} : { [role]: selected.id },
+    }));
+    toast(
+      `Squad switched to ${team.label} with ${selected.label} as ${role}.`,
+      "success",
+    );
+  }
   const go = (q: Record<string, string>) => {
     const next = new URLSearchParams();
     for (const [k, v] of Object.entries(q)) if (v) next.set(k, v);
@@ -213,133 +257,89 @@ export default function PromptsView() {
                 <span className={s.versionMeta}>{ranks[v.id]?.label}</span>
               </button>
             ))}
-            <button
-              type="button"
-              className={s.newVersion}
-              aria-label={`New ${role} prompt`}
-              title="New prompt for this position"
-              onClick={() =>
-                setDraft({
-                  ...template("prompts", w),
-                  formationId: formation.id,
-                  role,
-                  hypothesisIds: [],
-                })
-              }
-            >
-              <Icon name="plus" />
-            </button>
           </div>
           {selected ? (
             <>
               <div className={s.docHead}>
-                <div>
-                  <h2 className={s.docTitle}>{selected.label}</h2>
-                  <div className={s.docMeta}>
-                    <span>{role}</span>
-                    <span>{int(selected.text.length)} / 6,000 characters</span>
-                    <span>{date(selected.createdAt)}</span>
-                    {parent && <span>from {parent.label}</span>}
-                    {ranks[selected.id] && (
-                      <Badge tone={ranks[selected.id].tone}>
-                        {ranks[selected.id].label}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-                <div className={s.docActions}>
-                  <CopyButton text={selected.text} label="Copy prompt" />
-                  <Button
-                    icon="download"
-                    aria-label="Download as text"
-                    onClick={() =>
-                      download(
-                        `${role}-${selected.label.replace(/\W+/g, "-")}.txt`,
-                        selected.text,
-                      )
-                    }
-                  />
+                <h2 className={s.docTitle}>{selected.label}</h2>
+                <div className={s.docMeta}>
+                  {ranks[selected.id] && (
+                    <Badge tone={ranks[selected.id].tone}>
+                      {ranks[selected.id].label}
+                    </Badge>
+                  )}
+                  <span>
+                    {parent ? `From ${parent.label}` : "Original version"} ·{" "}
+                    {int(selected.text.length)} characters
+                  </span>
                 </div>
               </div>
-              <div className={s.bar}>
-                {parent ? (
-                  <Segmented
-                    size="sm"
-                    label="Prompt view"
-                    value={view}
-                    onChange={setView}
-                    options={[
-                      { value: "text", label: "Prompt" },
-                      {
-                        value: "changes",
-                        label: `Changes from ${parent.label}`,
-                      },
-                    ]}
-                  />
+              <div className={s.actionRow}>
+                {usedInSquad ? (
+                  <Button size="sm" icon="check" disabled>
+                    In your squad
+                  </Button>
                 ) : (
-                  <span className="muted" style={{ fontSize: 12.5 }}>
-                    Original version · no parent
-                  </span>
+                  <Button
+                    size="sm"
+                    variant="solid"
+                    icon="squad"
+                    onClick={useInSquad}
+                  >
+                    Use in squad
+                  </Button>
                 )}
-                <span style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  {squadTeam?.formationId === formation.id &&
-                    selected.id !== inSquad(role) && (
-                      <Button
-                        size="sm"
-                        variant="solid"
-                        onClick={() => {
-                          const lineup = { ...p.lineup };
-                          if (selected.id === squadTeam.promptIds[role])
-                            delete lineup[role];
-                          else lineup[role] = selected.id;
-                          set((old) => ({ ...old, lineup }));
-                          toast(
-                            `${selected.label} is now ${role} in your squad.`,
-                            "success",
-                          );
-                        }}
-                      >
-                        Use in squad
-                      </Button>
-                    )}
-                  <Button
-                    size="sm"
-                    icon="diff"
-                    onClick={() =>
-                      setDraft(reviseDraft("prompts", selected, w))
-                    }
-                  >
-                    Create revision
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    icon="sparkle"
-                    onClick={() => setRevising(true)}
-                  >
-                    Revise from annotations
-                  </Button>
-                </span>
+                <CopyButton
+                  text={selected.text}
+                  label="Copy prompt"
+                  size="sm"
+                />
+                <Button
+                  size="sm"
+                  icon="download"
+                  aria-label="Download as text"
+                  title="Download as text"
+                  onClick={() =>
+                    download(
+                      `${role}-${selected.label.replace(/\W+/g, "-")}.txt`,
+                      selected.text,
+                    )
+                  }
+                />
+                <span className={s.actionSpacer} />
+                <MenuButton
+                  label="New version"
+                  icon="plus"
+                  items={[
+                    {
+                      label: "Edit this version",
+                      hint: "Start from this text and change it yourself",
+                      icon: "diff",
+                      onSelect: () =>
+                        setDraft(reviseDraft("prompts", selected, w)),
+                    },
+                    {
+                      label: "Revise from annotations",
+                      hint: "Have a model draft it from a collection",
+                      icon: "sparkle",
+                      onSelect: () => setRevising(true),
+                    },
+                    {
+                      label: "Start blank",
+                      hint: `A new ${role} prompt from scratch`,
+                      icon: "prompt",
+                      onSelect: newBlank,
+                    },
+                  ]}
+                />
               </div>
               <pre className={s.text} aria-label="Prompt text">
-                {view === "changes" && parent
-                  ? diffLines(parent.text, selected.text).map((l, i) => (
-                      <div
-                        key={i}
-                        className={`${s.line} ${l.type === "add" ? s.add : l.type === "del" ? s.del : ""}`}
-                      >
-                        <span className={s.sign}>
-                          {l.type === "add" ? "+" : l.type === "del" ? "−" : ""}
-                        </span>
-                        <span>{l.text || " "}</span>
-                      </div>
-                    ))
-                  : selected.text.split("\n").map((l: string, i: number) => (
-                      <div key={i} className={s.line}>
-                        <span className={s.sign} />
-                        <span>{l || " "}</span>
-                      </div>
-                    ))}
+                {selected.text.split("\n").map((l: string, i: number) => (
+                  <div key={i} className={s.line}>
+                    <span className={s.sign} />
+                    <span>{l || " "}</span>
+                  </div>
+                ))}
               </pre>
             </>
           ) : (
@@ -348,8 +348,19 @@ export default function PromptsView() {
                 icon="prompt"
                 title={`No ${role} prompts for ${formation.family}`}
               >
-                Create the first version with the + button above.
+                Start the first version for this position.
               </EmptyState>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  marginTop: 12,
+                }}
+              >
+                <Button variant="primary" icon="plus" onClick={newBlank}>
+                  Start blank
+                </Button>
+              </div>
             </div>
           )}
         </section>
