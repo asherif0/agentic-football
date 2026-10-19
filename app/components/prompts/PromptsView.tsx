@@ -550,6 +550,21 @@ function Traceability({ prompt, w }: { prompt: RecordData; w: Workspace }) {
             </Link>
           </details>
         )}
+        {prompt.rsi && (
+          <details>
+            <summary>Improved by RSI</summary>
+            <p>
+              Round {prompt.rsi.round} ·{" "}
+              {prompt.rsi.bestScore?.points?.toFixed(2)} points per match
+              against {prompt.rsi.baselineScore?.points?.toFixed(2)} at the
+              start, over {prompt.rsi.bestScore?.matches} matches vs scripted{" "}
+              {prompt.rsi.bot} bots · written by {prompt.aiProposal?.model}
+            </p>
+            <Link href={`/rsi?session=${prompt.rsi.sessionId}`}>
+              View the RSI session →
+            </Link>
+          </details>
+        )}
         {prompt.collectionId && (
           <details>
             <summary>Built from an annotation collection</summary>

@@ -6,6 +6,8 @@ import { simulationRepository } from "../lib/simulation/repository";
 import { play, persistEvidence } from "../lib/simulation/runner";
 import { improvementRepository } from "../lib/improvement/persistence";
 import { advanceCampaign, recoverCampaigns } from "../lib/improvement/engine";
+import { rsiRepository } from "../lib/rsi/persistence";
+import { advanceRsi, recoverRsi } from "../lib/rsi/engine";
 const store = createStore();
 store.initialize();
 const repo = simulationRepository(store);
@@ -17,6 +19,7 @@ if (!acquired) {
   process.exit(0);
 }
 recoverCampaigns(repo);
+recoverRsi(repo);
 const beat = setInterval(() => {
   const r = repo.db
     .prepare("UPDATE sim_worker SET heartbeat=? WHERE id=1 AND owner=?")
@@ -54,6 +57,30 @@ async function main() {
             "Campaign stage failed; inspect its saved evidence before resuming";
           db.saveCampaign(live);
           for (const s of repo.series().filter((s) => s.campaignId === live.id))
+            if (
+              s.runIds.some((id) =>
+                ["queued", "running", "paused"].includes(
+                  repo.run(id)?.status || "",
+                ),
+              )
+            )
+              repo.seriesControl(s.id, "pause");
+        }
+      }
+    }
+    for (const session of rsiRepository(repo)
+      .list()
+      .filter((s) => s.status === "running")) {
+      try {
+        await advanceRsi(repo, session.id);
+      } catch (e) {
+        const db = rsiRepository(repo),
+          live = db.get(session.id);
+        if (live && live.status === "running") {
+          live.status = "paused";
+          live.reason = `RSI step failed: ${e instanceof Error ? e.message : "unknown error"}`;
+          db.save(live);
+          for (const s of db.series(live))
             if (
               s.runIds.some((id) =>
                 ["queued", "running", "paused"].includes(

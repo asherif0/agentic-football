@@ -111,6 +111,8 @@ export type RunConfig = {
   inputTokenLimit: number;
   scenarioIds: string[];
   pricing?: Record<string, Pricing>;
+  /** Set on matches an RSI session queued. */
+  rsi?: { sessionId: string; round: number };
   versions: {
     engine: string;
     observation: string;
@@ -144,7 +146,7 @@ export type Run = {
   reservedCostUsd?: number;
   reason: string | null;
   seriesId: string | null;
-  evidenceOrigin: "local simulation" | "test fixture";
+  evidenceOrigin: "local simulation" | "test fixture" | "rsi";
   matchId: string | null;
   workerId: string | null;
 };

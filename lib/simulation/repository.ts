@@ -30,8 +30,9 @@ export type Series = {
   runIds: string[];
   requestLimit: number;
   inputTokenLimit: number;
-  kind?: "benchmark" | "improvement";
+  kind?: "benchmark" | "improvement" | "rsi";
   campaignId?: string;
+  rsiId?: string;
   costLimitUsd?: number;
   manifest?: any;
   command: "run" | "pause" | "stop";
@@ -270,7 +271,11 @@ export function simulationRepository(store = createStore()) {
       ),
     };
   }
-  function create(config: RunConfig, seriesId: string | null = null) {
+  function create(
+    config: RunConfig,
+    seriesId: string | null = null,
+    origin?: Run["evidenceOrigin"],
+  ) {
     const now = new Date().toISOString();
     const run: Run = {
       id: crypto.randomUUID(),
@@ -288,7 +293,8 @@ export function simulationRepository(store = createStore()) {
       reason: null,
       seriesId,
       evidenceOrigin:
-        config.provider === "mock" ? "test fixture" : "local simulation",
+        origin ??
+        (config.provider === "mock" ? "test fixture" : "local simulation"),
       matchId: null,
       workerId: null,
     };

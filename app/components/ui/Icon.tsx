@@ -31,6 +31,7 @@ const PATHS = {
   play: "M7 4.5v15l13-7.5z",
   pause: "M7 5h3.5v14H7zM13.5 5H17v14h-3.5z",
   restart: "M4 12a8 8 0 1 0 2.4-5.7M4 4v5h5",
+  loop: "M17 2l3 3-3 3M4 11V9a4 4 0 0 1 4-4h12M7 22l-3-3 3-3M20 13v2a4 4 0 0 1-4 4H4",
   back: "M11 6 4 12l7 6zM20 6l-7 6 7 6z",
   forward: "m13 6 7 6-7 6zM4 6l7 6-7 6z",
   external:

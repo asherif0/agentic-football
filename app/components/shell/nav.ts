@@ -36,6 +36,12 @@ export const NAV: {
     step: "04",
     blurb: "Choose the best versions and export them",
   },
+  {
+    href: "/rsi",
+    label: "RSI",
+    icon: "loop",
+    blurb: "Let the lab rewrite, retest and keep the best prompt",
+  },
 ];
 export const LIBRARY = {
   href: "/library",

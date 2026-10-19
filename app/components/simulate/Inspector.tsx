@@ -84,8 +84,17 @@ export function Inspector({
   );
 }
 
-const promptLabel = (w: Workspace | undefined, id: string) =>
-  w?.prompts.find((p) => p.id === id)?.label ?? id;
+/** RSI rewrites are frozen into their matches under rsi-<session>-r<round>-<role> ids. */
+const RSI_ID = /^rsi-(.+)-r(\d+)-[A-Z0-9]+$/;
+const promptLabel = (w: Workspace | undefined, id: string) => {
+  const rsi = RSI_ID.exec(id);
+  if (rsi) return `RSI rewrite · round ${rsi[2]}`;
+  return w?.prompts.find((p) => p.id === id)?.label ?? id;
+};
+const promptHref = (id: string) => {
+  const rsi = RSI_ID.exec(id);
+  return rsi ? `/rsi?session=${rsi[1]}` : `/prompts?prompt=${id}`;
+};
 
 function PickPlayer({
   run,
@@ -197,7 +206,7 @@ function PlayerPanel({
         <dl className={s.kv}>
           <dt>Prompt</dt>
           <dd>
-            <Link href={`/prompts?prompt=${team.prompts[role].id}`}>
+            <Link href={promptHref(team.prompts[role].id)}>
               {promptLabel(workspace, team.prompts[role].id)}
             </Link>
           </dd>
@@ -470,7 +479,7 @@ function StatsPanel({
               <dt className="mono">{r}</dt>
               <dd>
                 <ModelChip model={run.config.team.models[r]} short /> ·{" "}
-                <Link href={`/prompts?prompt=${run.config.team.prompts[r].id}`}>
+                <Link href={promptHref(run.config.team.prompts[r].id)}>
                   {promptLabel(workspace, run.config.team.prompts[r].id)}
                 </Link>
               </dd>

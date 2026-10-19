@@ -181,6 +181,21 @@ New APIs:
 
 For the explicitly authorized pilot, `node --import tsx scripts/benchmark.ts start` creates the dated pilot once; `status` reports progress and `export` writes the manifest/results/insights under ignored `data/`. The worker executes independently of browser viewers. The pre-redesign database backup is `data/before-analytics-redesign.sqlite`.
 
+### RSI mode (recursive self-improvement)
+
+**RSI** in the sidebar tunes one player's prompt on its own and keeps only what wins. Pick a formation, a starting version, the player to improve (or **Any**, letting the writer choose each round), the players' model, a writer model, the opponent style, match length, matches per round and a spending limit, then start. One session runs at a time, in the background worker, so you can leave the page.
+
+1. **Baseline.** The starting version plays the evaluation matches: seeds 42, 43, … from both ends, against scripted bots. Stored completed matches with identical prompts, models, inference, layout, provider, opponent and length are reused for free.
+2. **Rewrite.** One structured Responses request (effort low, at most 4,096 output tokens, 60-second timeout) gets the squad's current best prompts, how they scored, the target player's decisions at flagged moments, the engine rules that matter, every earlier attempt in the session and, optionally, a critical-events collection. It returns a complete new prompt. A dropped connection is retried once; timeouts and HTTP errors never are.
+3. **Replay.** The rewrite plays the same matches. If it is behind the best version in both matches of the first seed, the rest are skipped.
+4. **Keep the best.** A rewrite becomes the best only with more points per match (win 3, draw 1, loss 0), or equal points and a better goal difference, then shots-on-target difference, then fewer dangerous turnovers.
+
+It stops at max rounds, after a set number of rounds in a row without a new best, at the spending limit, or when you click **Stop**. Then it saves the best prompt as a new draft version (parent = the starting prompt, with RSI provenance) plus a team version with it, ready for **Use in squad**. Rejected rewrites stay in the session history and are not saved as prompt versions. With so few matches, treat a win as a strong lead and confirm it in Simulate.
+
+The spending limit is a hard cap. Each round's matches run in a series capped at what is left, the writer call is reserved at its maximum before it is sent, and a round only starts when its estimate (writer maximum, matches with a 30% margin and room for in-flight reservations) fits in the remaining budget. The setup panel shows the per-match, per-round and baseline estimates from your stored token usage. As a guide, a 20-second match costs about $0.01 with Jev, $0.02 with Luna and $0.30–0.40 with Sol; a Luna rewrite costs under $0.01.
+
+RSI matches use their own evidence origin, so they stay out of Analytics and evidence records; their replays open in Simulate, labelled "RSI rewrite · round n". Endpoints: `GET /api/rsi`; `POST /api/rsi` with `action: "preview"` for an estimate, otherwise to start; `GET /api/rsi/:id`; `POST /api/rsi/:id` with `command: "run" | "pause" | "stop"`.
+
 ### Improvement campaigns
 
 Start an autonomous campaign from **Library → Improvement campaigns**: it uses your current squad and starting positions plus a strategy chosen on that page. Enter a dollar ceiling, review the request/token/generation ceilings, preview, then start. No campaign starts just by opening the application. Optional existing runs must match the baseline's exact model map, inference, formation, positions, duration, provider and engine versions; selected in-progress runs are awaited. Human annotations are optional. Changes to strategy create a new revision; existing campaign manifests stay frozen.

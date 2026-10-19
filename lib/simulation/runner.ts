@@ -336,7 +336,8 @@ export async function executeRound(
   return { traces, waitingMs: performance.now() - begin, limited };
 }
 export function persistEvidence(repo: SimRepository, run: Run) {
-  if (run.matchId) return;
+  // RSI matches swap prompts inside a saved team, so no evidence record names them.
+  if (run.matchId || run.config.rsi) return;
   const s = repo.store;
   repo.db.transaction(() => {
     const live = repo.run(run.id)!;
