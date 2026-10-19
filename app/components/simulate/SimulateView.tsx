@@ -1,9 +1,12 @@
 "use client";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ROLES } from "../../../lib/domain";
+import { ROLES, type RecordData } from "../../../lib/domain";
 import type { Event } from "../../../lib/simulation/types";
+import { postJSON } from "../../lib/data/cache";
 import { useReplay, useRunIndex, useWorkspace } from "../../lib/data/hooks";
+import { findAnnotation, momentAnnotation } from "../../lib/moments";
+import { toast } from "../../lib/toast";
 import { reducedMotion } from "../../lib/motion";
 import { modelLabel } from "../../lib/models";
 import { tracesByPlayer } from "../../lib/playback";
@@ -22,6 +25,7 @@ import {
   Skeleton,
 } from "../ui/primitives";
 import { Inspector } from "./Inspector";
+import { MomentDialog } from "./MomentDialog";
 import { MatchPicker } from "./MatchPicker";
 import { Scoreboard } from "./Scoreboard";
 import { SetupPanel } from "./SetupPanel";
@@ -38,7 +42,13 @@ export default function SimulateView() {
     [selected, setSelected] = useState<string | null>(null),
     [intent, setIntent] = useState(true),
     [picker, setPicker] = useState(false),
-    [setup, setSetup] = useState(params.get("new") === "1");
+    [setup, setSetup] = useState(params.get("new") === "1"),
+    [created, setCreated] = useState<RecordData[]>([]),
+    [moment, setMoment] = useState<{
+      record: RecordData;
+      created: boolean;
+    } | null>(null),
+    annotating = useRef(false);
 
   // Open the newest completed local replay when no match is in the URL.
   useEffect(() => {
@@ -124,10 +134,46 @@ export default function SimulateView() {
     router.push(`/simulate?run=${id}`, { scroll: false });
   };
   const summary = index?.runs.find((r) => r.id === runId);
-  const annotate = (e: Event) =>
-    router.push(
-      `/library/annotations?draft=new&match=${run?.matchId}&t=${e.time}&obs=${encodeURIComponent(e.detail)}`,
-    );
+  // Annotate saves the moment straight away; the dialog then offers an optional diagnosis.
+  const annotations = useMemo(() => {
+    const all = [...(ws?.records.annotations ?? [])];
+    for (const r of created) if (!all.some((a) => a.id === r.id)) all.push(r);
+    return all;
+  }, [ws, created]);
+  const canAnnotate =
+    !!run?.matchId && run.evidenceOrigin === "local simulation";
+  const isAnnotated = (e: Event) =>
+    !!run && !!findAnnotation(annotations, run, e);
+  async function annotateEvent(e: Event) {
+    if (!run || annotating.current) return;
+    const existing = findAnnotation(annotations, run, e);
+    if (existing) {
+      setMoment({ record: existing, created: false });
+      return;
+    }
+    const draft = momentAnnotation(run, frames, e);
+    if (!draft) {
+      toast(
+        "Only completed local-simulation matches can be annotated.",
+        "error",
+      );
+      return;
+    }
+    annotating.current = true;
+    try {
+      const record = await postJSON<RecordData>(
+        "/api/workspace",
+        { kind: "annotations", record: draft },
+        ["workspace"],
+      );
+      setCreated((old) => [...old, record]);
+      setMoment({ record, created: true });
+    } catch (err) {
+      toast((err as Error).message, "error");
+    } finally {
+      annotating.current = false;
+    }
+  }
 
   return (
     <>
@@ -237,7 +283,8 @@ export default function SimulateView() {
               events={keyEvents}
               duration={run?.config.duration ?? 0}
               playback={playback}
-              onAnnotate={run?.matchId ? annotate : undefined}
+              onAnnotate={canAnnotate ? annotateEvent : undefined}
+              isAnnotated={isAnnotated}
             />
             <Transport
               playback={playback}
@@ -284,6 +331,8 @@ export default function SimulateView() {
             selected={selected}
             onSelect={setSelected}
             workspace={ws?.records}
+            onAnnotate={canAnnotate ? annotateEvent : undefined}
+            isAnnotated={isAnnotated}
           />
         ) : (
           <Skeleton height={420} radius={16} />
@@ -301,6 +350,12 @@ export default function SimulateView() {
           onPick={go}
         />
       )}
+      <MomentDialog
+        record={moment?.record ?? null}
+        created={moment?.created ?? false}
+        onClose={() => setMoment(null)}
+        onSaved={(r) => setCreated((old) => [...old, r])}
+      />
       {index && ws && (
         <SetupPanel
           open={setup}

@@ -13,11 +13,13 @@ export function Timeline({
   duration,
   playback,
   onAnnotate,
+  isAnnotated,
 }: {
   events: Event[];
   duration: number;
   playback: Playback;
   onAnnotate?: (e: Event) => void;
+  isAnnotated?: (e: Event) => boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null),
     fill = useRef<HTMLDivElement>(null),
@@ -148,7 +150,9 @@ export function Timeline({
                   className={s.linkButton}
                   onClick={() => onAnnotate(e)}
                 >
-                  Annotate this moment →
+                  {isAnnotated?.(e)
+                    ? "Annotated ✓ · add diagnosis"
+                    : "Annotate this moment"}
                 </button>
               )}
             </div>

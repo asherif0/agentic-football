@@ -14,6 +14,7 @@ import { download } from "../../lib/download";
 import { REF_KINDS, hrefFor, recordName } from "../../lib/records";
 import { toast } from "../../lib/toast";
 import { usePreparation } from "../Preparation";
+import { MomentReviewForm } from "../simulate/MomentDialog";
 
 type Attachment = { id: string; name: string };
 
@@ -40,13 +41,17 @@ export default function RecordDetail({
       <div className="record-head">
         <h2>{recordName(x)}</h2>
         <span className="badge">
-          {x.evidenceOrigin
-            ? x.evidenceOrigin.toUpperCase()
-            : x.synthetic
-              ? "SYNTHETIC"
-              : kind === "teams"
-                ? teamStatus(x.id, w)
-                : x.status || `r${x.revision || 1}`}
+          {kind === "annotations"
+            ? String(x.diagnosis ?? "").trim()
+              ? "Diagnosed"
+              : "Needs diagnosis"
+            : x.evidenceOrigin
+              ? x.evidenceOrigin.toUpperCase()
+              : x.synthetic
+                ? "SYNTHETIC"
+                : kind === "teams"
+                  ? teamStatus(x.id, w)
+                  : x.status || `r${x.revision || 1}`}
         </span>
       </div>
       <details className="record-meta">
@@ -159,6 +164,46 @@ export default function RecordDetail({
             ))}
           </div>
         </>
+      ) : kind === "annotations" ? (
+        <>
+          <p>{x.observation}</p>
+          <p className="muted">
+            {x.phase} · our {x.role}
+            {x.team
+              ? ` · ${x.team === "us" ? "our moment" : "opponent moment"}`
+              : ""}
+            {x.source === "replay" ? " · saved from the replay" : ""}
+          </p>
+          {String(x.diagnosis ?? "").trim() ? (
+            <p className="strategy-brief" style={{ whiteSpace: "pre-wrap" }}>
+              {x.diagnosis}
+            </p>
+          ) : (
+            <p className="empty" style={{ padding: 14 }}>
+              No diagnosis yet. Adding one is optional.
+            </p>
+          )}
+          {x.runId && (
+            <Link
+              className="file-button"
+              href={`/simulate?run=${x.runId}&t=${Math.max(0, parseFloat(String(x.timestamp)) - 2).toFixed(1)}`}
+            >
+              Watch this moment
+            </Link>
+          )}
+          <h3>
+            {String(x.diagnosis ?? "").trim()
+              ? "Add to the diagnosis"
+              : "Add a diagnosis"}
+          </h3>
+          <MomentReviewForm
+            record={x}
+            showExisting={false}
+            onSaved={(r) =>
+              router.replace(`/library/annotations?record=${r.id}`)
+            }
+          />
+        </>
       ) : (
         <details>
           <summary>Record data</summary>
@@ -166,11 +211,13 @@ export default function RecordDetail({
         </details>
       )}
       <div className="toolbar">
-        <button className="secondary" onClick={() => onRevise(x)}>
-          {["formations", "prompts", "teams"].includes(kind)
-            ? "Create revision"
-            : "Copy to new record"}
-        </button>
+        {kind !== "annotations" && (
+          <button className="secondary" onClick={() => onRevise(x)}>
+            {["formations", "prompts", "teams"].includes(kind)
+              ? "Create revision"
+              : "Copy to new record"}
+          </button>
+        )}
         {kind === "formations" && (
           <button className="secondary" onClick={() => onDuplicate(x)}>
             Duplicate as new formation

@@ -2,6 +2,7 @@ import {
   DIMENSIONS,
   PHASES,
   ROLES,
+  latestAnnotations,
   type Kind,
   type RecordData,
   type Workspace,
@@ -51,7 +52,8 @@ export function relevant(kind: Kind, w: Workspace, family = "all") {
   const formationIds = w.formations
     .filter((f) => family === "all" || f.family === family)
     .map((f) => f.id);
-  return w[kind].filter((x) => {
+  const pool = kind === "annotations" ? latestAnnotations(w) : w[kind];
+  return pool.filter((x) => {
     if (family === "all" || ["sources", "principles"].includes(kind))
       return true;
     if (kind === "formations") return formationIds.includes(x.id);

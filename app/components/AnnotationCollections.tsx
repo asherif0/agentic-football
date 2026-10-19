@@ -5,6 +5,7 @@ import {
   Role,
   ROLES,
   Workspace,
+  latestAnnotations,
   promptDiff,
 } from "../../lib/domain";
 import { annotationContext } from "../../lib/prompt-proposals";
@@ -128,7 +129,7 @@ export default function AnnotationCollections({
     .reverse();
   const parent = prompts.find((p) => p.id === parentId) || prompts[0];
   const saved = w.collections.find((c) => c.id === savedId);
-  const eligible = w.annotations.filter((a) => {
+  const eligible = latestAnnotations(w).filter((a) => {
     const c = annotationContext(a, w);
     return (
       a.role === role &&

@@ -149,6 +149,10 @@ The app follows one journey, shown as numbered steps in the black navigation rai
 
 The theme follows the system setting, with a light/dark/system toggle in the top bar. Type is Geist and Geist Mono; motion uses GSAP and respects reduced-motion preferences. Browsing never starts the simulation worker: pages read `GET /api/runs` (run summaries) and `GET /api/simulation/:id?view=replay|frames` (replays without observation payloads).
 
+### Critical events from the replay
+
+On **Simulate**, click **Annotate this moment** on a timeline marker, or **+** next to an event in the inspector's Events tab. The moment is saved to **Library → Critical events** straight away, with the match, time, phase of play, our player involved and a description filled in. A diagnosis is optional: add it in the dialog that opens, or later from the event's page in the Library. Records are immutable, so a diagnosis is saved as a reviewed version linked to the original, and lists show only the newest version. Annotated moments show ✓, and clicking them again opens the diagnosis form instead of creating a duplicate. Mock (test fixture) matches can't be annotated.
+
 ### Revising prompts from annotation collections
 
 Open **Library → Collections**, or **Prompts → Revise from annotations**. Choose a formation revision, player, parent prompt and evidence origin. Select up to 50 critical-event annotations from any matching matches, name the collection and save it. Collections are immutable; **Revise collection** creates a new one. Portal, local simulation and test fixture evidence stay separate. Different tested prompt versions are identified in the evidence sent to the model.

@@ -8,13 +8,18 @@ export default function RecordBrowser({
   requestedId,
   children,
   storageKey,
+  statusOf,
 }: {
   records: RecordData[];
   name: (r: RecordData) => string;
   requestedId?: string | null;
   children: (r: RecordData) => ReactNode;
   storageKey?: string;
+  /** Label used by the status filter and column. */
+  statusOf?: (r: RecordData) => string;
 }) {
+  const filterKey =
+    statusOf ?? ((r: RecordData) => r.evidenceOrigin || r.status || "draft");
   const [query, setQuery] = useState(""),
     [status, setStatus] = useState(""),
     [selected, setSelected] = useState<string | null>(null),
@@ -59,7 +64,7 @@ export default function RecordBrowser({
   const filtered = records
     .filter(
       (r) =>
-        (!status || (r.evidenceOrigin || r.status || "draft") === status) &&
+        (!status || filterKey(r) === status) &&
         `${name(r)} ${r.role || ""} ${r.observation || ""} ${r.formationId || ""}`
           .toLowerCase()
           .includes(query.toLowerCase()),
@@ -97,11 +102,7 @@ export default function RecordBrowser({
             }}
           >
             <option value="">All statuses / origins</option>
-            {[
-              ...new Set(
-                records.map((r) => r.evidenceOrigin || r.status || "draft"),
-              ),
-            ].map((s) => (
+            {[...new Set(records.map(filterKey))].map((s) => (
               <option key={s}>{s}</option>
             ))}
           </select>
@@ -119,7 +120,11 @@ export default function RecordBrowser({
                 </button>
                 {r.role && <small>{r.role}</small>}
               </td>
-              <td>{r.evidenceOrigin || r.status || "Recorded"}</td>
+              <td>
+                {statusOf
+                  ? statusOf(r)
+                  : r.evidenceOrigin || r.status || "Recorded"}
+              </td>
               <td>{new Date(r.createdAt).toLocaleDateString()}</td>
               <td>
                 <button

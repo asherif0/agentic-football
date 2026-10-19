@@ -9,6 +9,7 @@ import {
   compareConditions,
   summarize,
   promptDiff,
+  latestAnnotations,
 } from "../lib/domain";
 import { manualPortal } from "../lib/portal";
 function fixture() {
@@ -323,4 +324,40 @@ test("prompt diff identifies additions and removals", () => {
     removed: ["b"],
     added: ["c"],
   });
+});
+test("critical events may omit a diagnosis and gain one as a reviewed version", () => {
+  const s = fixture();
+  const e = experiment(s);
+  const m = match(s, e.id),
+    other = match(s, e.id);
+  const base = {
+    matchId: m.id,
+    timestamp: "5.00s",
+    role: "MID",
+    phase: PHASES[2],
+    observation: "5.0 s · Ball won back",
+    diagnosis: "",
+    scores: { Recovery: null },
+    evidenceIds: [],
+  };
+  const auto = s.save("annotations", base);
+  const reviewed = s.save("annotations", {
+    ...base,
+    parentId: auto.id,
+    diagnosis: "Recovered behind the ball",
+    scores: { Recovery: 2 },
+  });
+  assert.throws(
+    () =>
+      s.save("annotations", { ...base, matchId: other.id, parentId: auto.id }),
+    /same match/,
+  );
+  assert.throws(
+    () => s.save("annotations", { ...base, diagnosis: undefined }),
+    /diagnosis/,
+  );
+  const latest = latestAnnotations(s.read());
+  assert.ok(latest.some((a) => a.id === reviewed.id));
+  assert.ok(!latest.some((a) => a.id === auto.id));
+  s.db.close();
 });

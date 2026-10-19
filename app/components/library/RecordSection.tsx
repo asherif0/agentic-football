@@ -13,6 +13,7 @@ import {
   template,
 } from "../../lib/records";
 import { toast } from "../../lib/toast";
+import { latestVersion } from "../../lib/moments";
 import RecordBrowser from "../RecordBrowser";
 import { EmptyState, Skeleton } from "../ui/primitives";
 import RecordDetail from "./RecordDetail";
@@ -58,6 +59,15 @@ export default function RecordSection({ kind }: { kind: Kind }) {
         <Skeleton height={280} />
       </div>
     );
+  // A link to an older annotation opens its newest reviewed version.
+  const linked = params.get("record");
+  const linkedRecord =
+    kind === "annotations"
+      ? w.annotations.find((a) => a.id === linked)
+      : undefined;
+  const requestedId = linkedRecord
+    ? latestVersion(w.annotations, linkedRecord).id
+    : linked;
   const records = relevant(kind, w, family),
     families = [...new Set(w.formations.map((f) => f.family))];
   const setDraft = (fn: (d: any) => any) => setDraftState(fn);
@@ -123,7 +133,15 @@ export default function RecordSection({ kind }: { kind: Kind }) {
           storageKey={kind}
           records={records}
           name={recordName}
-          requestedId={params.get("record")}
+          requestedId={requestedId}
+          statusOf={
+            kind === "annotations"
+              ? (r) =>
+                  String(r.diagnosis ?? "").trim()
+                    ? "Diagnosed"
+                    : "Needs diagnosis"
+              : undefined
+          }
         >
           {(x: RecordData) => (
             <RecordDetail

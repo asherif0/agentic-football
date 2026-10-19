@@ -276,11 +276,18 @@ export function validate(kind: Kind, d: RecordData, w: Workspace) {
     );
   }
   if (kind === "annotations") {
-    strings("timestamp", "observation", "diagnosis");
+    strings("timestamp", "observation");
+    // A diagnosis is optional; it can be added later as a reviewed version.
+    required(typeof d.diagnosis === "string", "diagnosis must be text");
     const m = ref("matches", d.matchId),
       e = ref("experiments", m.experimentId),
       t = ref("teams", e.teamId),
       f = ref("formations", t.formationId);
+    if (d.parentId)
+      required(
+        ref("annotations", d.parentId).matchId === d.matchId,
+        "A reviewed annotation must belong to the same match",
+      );
     required(PHASES.includes(d.phase), "Invalid phase");
     required(ROLES.includes(d.role), "Invalid player");
     required(d.scores && typeof d.scores === "object", "Scores required");
@@ -365,7 +372,7 @@ export function summarize(teamId: string, w: Workspace) {
   const matches = w.matches.filter(
     (m) => ids.includes(m.experimentId) && !m.synthetic,
   );
-  const events = w.annotations.filter((a) =>
+  const events = latestAnnotations(w).filter((a) =>
     matches.some((m) => m.id === a.matchId),
   );
   const keys = [
@@ -433,6 +440,13 @@ export function summarize(teamId: string, w: Workspace) {
       ]),
     ),
   };
+}
+/** Annotations without a later reviewed version (a child naming them as parentId). */
+export function latestAnnotations(w: Pick<Workspace, "annotations">) {
+  const replaced = new Set(
+    w.annotations.map((a) => a.parentId).filter(Boolean) as string[],
+  );
+  return w.annotations.filter((a) => !replaced.has(a.id));
 }
 export function promptDiff(before: string, after: string) {
   const a = before.split("\n"),

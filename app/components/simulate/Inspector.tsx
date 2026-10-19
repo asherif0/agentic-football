@@ -27,6 +27,8 @@ export function Inspector({
   selected,
   onSelect,
   workspace,
+  onAnnotate,
+  isAnnotated,
 }: {
   run: Run;
   traces: Map<string, Trace[]>;
@@ -35,6 +37,8 @@ export function Inspector({
   selected: string | null;
   onSelect: (id: string | null) => void;
   workspace?: Workspace;
+  onAnnotate?: (e: Event) => void;
+  isAnnotated?: (e: Event) => boolean;
 }) {
   const [tab, setTab] = useState<Tab>("player");
   const st = usePlaybackState(playback);
@@ -66,7 +70,13 @@ export function Inspector({
           <PickPlayer run={run} onSelect={onSelect} workspace={workspace} />
         )
       ) : tab === "events" ? (
-        <EventsPanel run={run} time={st.time} playback={playback} />
+        <EventsPanel
+          run={run}
+          time={st.time}
+          playback={playback}
+          onAnnotate={onAnnotate}
+          isAnnotated={isAnnotated}
+        />
       ) : (
         <StatsPanel run={run} performance={performance} workspace={workspace} />
       )}
@@ -303,16 +313,18 @@ function EventsPanel({
   run,
   time,
   playback,
+  onAnnotate,
+  isAnnotated,
 }: {
   run: Run;
   time: number;
   playback: Playback;
+  onAnnotate?: (e: Event) => void;
+  isAnnotated?: (e: Event) => boolean;
 }) {
   const [all, setAll] = useState(false);
   const events = run.state.events.filter((e) => all || e.bookmark);
   const current = [...events].reverse().find((e) => e.time <= time);
-  const annotate = (e: Event) =>
-    `/library/annotations?draft=new&match=${run.matchId}&t=${e.time}&obs=${encodeURIComponent(e.detail)}`;
   return (
     <div className={s.section}>
       <div className={s.sectionHead}>
@@ -330,7 +342,7 @@ function EventsPanel({
       </div>
       <ul className={s.events}>
         {events.map((e) => (
-          <li key={e.id}>
+          <li key={e.id} className={s.eventRow}>
             <button
               type="button"
               className={`${s.event} ${e.type === "goal" ? s.eventGoal : ""}`}
@@ -343,16 +355,32 @@ function EventsPanel({
                   {eventName(e.type)} ·{" "}
                   {e.side === run.config.teamSide ? "you" : "opponent"}
                 </span>
-                {e.detail}
+                {prettyAction(e.detail).text}
               </span>
             </button>
+            {onAnnotate && (
+              <button
+                type="button"
+                className={s.annotate}
+                data-done={!!isAnnotated?.(e)}
+                title={
+                  isAnnotated?.(e)
+                    ? "In Critical events · add a diagnosis"
+                    : "Save to Critical events"
+                }
+                aria-label={`${isAnnotated?.(e) ? "Add a diagnosis for" : "Annotate"} ${eventName(e.type)} at ${clock(e.time)}`}
+                onClick={() => onAnnotate(e)}
+              >
+                {isAnnotated?.(e) ? "✓" : "+"}
+              </button>
+            )}
           </li>
         ))}
       </ul>
-      {run.matchId && current && (
-        <Button href={annotate(current)} size="sm" icon="plus">
-          Annotate {clock(current.time)}
-        </Button>
+      {onAnnotate && (
+        <p className="muted" style={{ fontSize: 12 }}>
+          + saves a moment to Critical events; a diagnosis is optional.
+        </p>
       )}
     </div>
   );
