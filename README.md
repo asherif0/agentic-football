@@ -1,5 +1,7 @@
 # Agentic Football Lab
 
+![A stored match replaying on the Agentic Football Lab home page](docs/hero.gif)
+
 A local lab for building, simulating and evaluating five-a-side football teams whose players are LLM agents. Give each of the five players its own prompt and model, replay every match decision by decision, compare configurations, and export the prompts that win.
 
 It ships with FIFA/UEFA and futsal source references, two formations (1–1–2 and 2–1–1), and baseline, research and adaptive prompt versions for every position. None of them are assumed to be validated: the point of the lab is to collect evidence.
