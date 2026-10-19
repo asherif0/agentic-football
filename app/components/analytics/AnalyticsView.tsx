@@ -8,6 +8,7 @@ import { useAnalytics } from "../../lib/data/hooks";
 import { dec, int, ms, pct, signed, usd, date } from "../../lib/format";
 import {
   MODEL_OPTIONS,
+  apiLabel,
   isUniform,
   modelLabel,
   modelShort,
@@ -116,7 +117,7 @@ export default function AnalyticsView() {
     return {
       id: `${g.teamId}|${g.modelMap}|${g.provider}|${g.duration}`,
       label: modelLabel(m),
-      sub: `${g.team} · ${g.matches} match${g.matches === 1 ? "" : "es"} · ${g.duration}s`,
+      sub: `${apiLabel(m, g.provider)} · ${g.team} · ${g.matches}× ${g.duration}s`,
       group: g.formation,
       color: isUniform(m) ? seriesVar(m.GK) : "var(--series-other)",
       shape: shapeOf(g.formationId),
